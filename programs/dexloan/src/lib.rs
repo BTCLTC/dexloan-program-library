@@ -1,28 +1,40 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, SetAuthority, Token, TokenAccount, Transfer};
-use spl_token::instruction::AuthorityType;
+use anchor_spl::{
+    token::{Mint, Token, TokenAccount},
+};
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("AqLBJQk2vRmJvX3hT43RQrWBfy66oXLsHYd136JHh45R");
 
 #[program]
 pub mod dexloan {
     use super::*;
 
-    const ESCROW_PDA_SEED: &[u8] = b"escrow";
-
-    pub fn list(ctx: Context<List>, nonce: u8, amount: u64, duration: u64, basis_points: u16) -> ProgramResult {
+    pub fn list(
+        ctx: Context<List>,
+        nonce: u8,
+        collateral_amount: u64,
+        loan_amount: u64,
+        duration: u64,
+        basis_points: u16
+    ) -> ProgramResult {
         let listing = &mut ctx.accounts.listing;
 
         listing.active = false;
-        listing.amount = amount;
+        listing.amount = loan_amount;
+        listing.authority = ctx.accounts.borrower.key();
         listing.duration = duration;
         listing.basis_points = basis_points;
-        listing.authority = ctx.accounts.borrower.key();
-        listing.escrow_token_account = ctx.accounts.token_account.key();
+        listing.mint = ctx.accounts.mint.key();
         listing.nonce = nonce;
 
-        let (pda, _bump_seed) = Pubkey::find_program_address(&[ESCROW_PDA_SEED], ctx.program_id);
-        token::set_authority(ctx.accounts.into(), AuthorityType::AccountOwner, Some(pda))?;
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_accounts = anchor_spl::token::Transfer {
+            from: ctx.accounts.borrower_tokens.to_account_info(),
+            to: ctx.accounts.escrow.to_account_info(),
+            authority: ctx.accounts.borrower.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        anchor_spl::token::transfer(cpi_ctx, collateral_amount)?;
         Ok(())
     }
 
@@ -31,12 +43,24 @@ pub mod dexloan {
         let listing = &mut ctx.accounts.listing;
 
         loan.start_date = ctx.accounts.clock.unix_timestamp;
-        loan.issuer = ctx.accounts.issuer.key();
+        loan.lender = ctx.accounts.lender.key();
         loan.listing = listing.key();
         loan.nonce = nonce;
-        // listing.active = true;
+        listing.active = true;
 
-        /// TODO transfer SOL to borrower
+        anchor_lang::solana_program::program::invoke_signed(
+            &anchor_lang::solana_program::system_instruction::transfer(
+                &ctx.accounts.lender.key(),
+                &listing.authority,
+                listing.amount,
+            ),
+            &[
+                listing.to_account_info(),
+                ctx.accounts.lender.to_account_info(),
+                ctx.accounts.system_program.to_account_info(),
+            ],
+            &[],
+        )?;
 
         Ok(())
     }
@@ -52,52 +76,67 @@ pub mod dexloan {
 
 
 #[derive(Accounts)]
-#[instruction(listing_bump: u8, amount: u64, duration: u64, basis_points: u16)]
+#[instruction(
+    escrow_bump: u8,
+    collateral_amount: u64,
+    loan_amount: u64,
+    duration: u64,
+    basis_points: u16
+)]
 pub struct List<'info> {
     /// The person who is listing the loan 
-    #[account(signer)]
-    pub borrower: AccountInfo<'info>,
+    pub borrower: Signer<'info>,
+    pub borrower_tokens: Account<'info, TokenAccount>,
     /// The new listing account
     #[account(
         init,
         payer = borrower,
-        seeds = [LISTING_PDA_SEED, token_account.key().as_ref()],
-        space = 8 + 1000,
-        bump = listing_bump,
+        space = LISTING_SIZE,
     )]
     pub listing: Account<'info, Listing>,
-    /// The token account that is being offered to secure the loan
-    pub token_account: Account<'info, TokenAccount>,
+    // This is where we'll store the offer maker's tokens.
+    #[account(
+        init,
+        payer = borrower,
+        seeds = [listing.key().as_ref()],
+        bump = escrow_bump,
+        token::mint = mint,
+        // We want the program itself to have authority over the escrow token
+        // account, so we need to use some program-derived address here.
+        // The escrow token account itself already lives at a program-derived
+        // address, so we can set its authority to be its own address.
+        token::authority = escrow,
+    )]
+    pub escrow: Account<'info, TokenAccount>,
+    pub mint: Account<'info, Mint>,
     /// Misc
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
+    pub rent: Sysvar<'info, Rent>,
 }
 
 #[derive(Accounts)]
 #[instruction(loan_bump: u8)]
 pub struct MakeLoan<'info> {
-    #[account(signer)]
-    pub issuer: AccountInfo<'info>,
+    /// The lender
+    pub lender: Signer<'info>,
     /// The listing the loan is being issued against
     pub listing: Account<'info, Listing>,
     /// The new loan account
     #[account(
         init,
-        payer = issuer,
-        seeds = [LOAN_PDA_SEED, token_account.key().as_ref()],
+        payer = lender,
+        seeds = [LOAN_PDA_SEED, listing.key().as_ref()],
         space = LOAN_SIZE,
         bump = loan_bump,
     )]
     pub loan: Account<'info, Loan>,
-    /// The token account used to secure the loan
-    pub token_account: Account<'info, TokenAccount>,
     /// Misc
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
     pub clock: Sysvar<'info, Clock>,
 }
 
-const LISTING_PDA_SEED: &[u8] = b"listing";
 const LISTING_SIZE: usize = 1 + 8 + 32 + 8 + 2 + 32 + 32 + 1 + 100;
 
 #[account]
@@ -112,40 +151,26 @@ pub struct Listing {
     pub duration: u64,
     /// Annualized return
     pub basis_points: u16,
-    /// Address of the account's token vault.
-    pub escrow_token_account: Pubkey,
+    /// Address of the account's token vault
+    pub escrow: Pubkey,
+    /// The mint of the token being used for collateral
+    pub mint: Pubkey,
     /// Misc
     pub nonce: u8,
 }
+
+const LOAN_PDA_SEED: &[u8] = b"loan";
+const LOAN_SIZE: usize = 8 + 32 + 32 + 8 + 100;
 
 #[account]
 pub struct Loan {
     /// The start date of the loan
     pub start_date: i64,
     /// The issuer of the loan
-    pub issuer: Pubkey,
+    pub lender: Pubkey,
     /// The listing of the loan
     pub listing: Pubkey,
     /// Misc
     pub nonce: u8,
     
-}
-
-const LOAN_PDA_SEED: &[u8] = b"loan";
-const LOAN_SIZE: usize = 8 + 32 + 32 + 8 + 100;
-
-impl<'info> From<&mut List<'info>>
-    for CpiContext<'_, '_, '_, 'info, SetAuthority<'info>>
-{
-    fn from(accounts: &mut List<'info>) -> Self {
-        let cpi_accounts = SetAuthority {
-            account_or_mint: accounts
-                .token_account
-                .to_account_info()
-                .clone(),
-            current_authority: accounts.borrower.clone(),
-        };
-        let cpi_program = accounts.token_program.to_account_info();
-        CpiContext::new(cpi_program, cpi_accounts)
-    }
 }

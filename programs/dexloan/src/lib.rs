@@ -49,18 +49,17 @@ pub mod dexloan {
         loan.nonce = nonce;
         listing.active = true;
 
-        anchor_lang::solana_program::program::invoke_signed(
+        anchor_lang::solana_program::program::invoke(
             &anchor_lang::solana_program::system_instruction::transfer(
                 &ctx.accounts.lender.key(),
                 &listing.authority,
                 listing.amount,
             ),
             &[
-                listing.to_account_info(),
                 ctx.accounts.lender.to_account_info(),
+                ctx.accounts.borrower.to_account_info(),
                 ctx.accounts.system_program.to_account_info(),
-            ],
-            &[],
+            ]
         )?;
 
         Ok(())
@@ -122,19 +121,22 @@ pub struct List<'info> {
 #[derive(Accounts)]
 #[instruction(loan_bump: u8)]
 pub struct MakeLoan<'info> {
+    pub borrower: AccountInfo<'info>,
     /// The lender
     pub lender: Signer<'info>,
     /// The listing the loan is being issued against
+    #[account(mut)]
     pub listing: Account<'info, Listing>,
     /// The new loan account
     #[account(
         init,
         payer = lender,
-        seeds = [LOAN_PDA_SEED, listing.key().as_ref()],
+        seeds = [b"loan", listing.key().as_ref()],
         space = LOAN_SIZE,
         bump = loan_bump,
     )]
     pub loan: Account<'info, Loan>,
+    pub mint: Account<'info, Mint>,
     /// Misc
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
@@ -164,7 +166,6 @@ pub struct Listing {
     pub escrow_bump: u8,
 }
 
-const LOAN_PDA_SEED: &[u8] = b"loan";
 const LOAN_SIZE: usize = 8 + 32 + 32 + 8 + 100;
 
 #[account]

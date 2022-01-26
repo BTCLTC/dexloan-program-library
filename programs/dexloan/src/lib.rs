@@ -11,21 +11,22 @@ pub mod dexloan {
 
     pub fn list(
         ctx: Context<List>,
-        nonce: u8,
-        collateral_amount: u64,
-        loan_amount: u64,
+        bump: u8,
+        escrow_bump: u8,
+        amount: u64,
         duration: u64,
-        basis_points: u16
+        basis_points: u16,
     ) -> ProgramResult {
         let listing = &mut ctx.accounts.listing;
 
         listing.active = false;
-        listing.amount = loan_amount;
+        listing.amount = amount;
         listing.authority = ctx.accounts.borrower.key();
         listing.duration = duration;
         listing.basis_points = basis_points;
         listing.mint = ctx.accounts.mint.key();
-        listing.nonce = nonce;
+        listing.escrow_bump = escrow_bump;
+        listing.bump = bump;
 
         let cpi_program = ctx.accounts.token_program.to_account_info();
         let cpi_accounts = anchor_spl::token::Transfer {
@@ -34,7 +35,7 @@ pub mod dexloan {
             authority: ctx.accounts.borrower.to_account_info(),
         };
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        anchor_spl::token::transfer(cpi_ctx, collateral_amount)?;
+        anchor_spl::token::transfer(cpi_ctx, 1)?;
         Ok(())
     }
 
@@ -77,20 +78,23 @@ pub mod dexloan {
 
 #[derive(Accounts)]
 #[instruction(
+    bump: u8,
     escrow_bump: u8,
-    collateral_amount: u64,
-    loan_amount: u64,
+    amount: u64,
     duration: u64,
-    basis_points: u16
+    basis_points: u16,
 )]
 pub struct List<'info> {
-    /// The person who is listing the loan 
+    /// The person who is listing the loan
     pub borrower: Signer<'info>,
+    #[account(mut)]
     pub borrower_tokens: Account<'info, TokenAccount>,
     /// The new listing account
     #[account(
         init,
         payer = borrower,
+        seeds = [b"listing", mint.key().as_ref()],
+        bump = bump,
         space = LISTING_SIZE,
     )]
     pub listing: Account<'info, Listing>,
@@ -98,7 +102,7 @@ pub struct List<'info> {
     #[account(
         init,
         payer = borrower,
-        seeds = [listing.key().as_ref()],
+        seeds = [b"escrow", mint.key().as_ref()],
         bump = escrow_bump,
         token::mint = mint,
         // We want the program itself to have authority over the escrow token
@@ -156,7 +160,8 @@ pub struct Listing {
     /// The mint of the token being used for collateral
     pub mint: Pubkey,
     /// Misc
-    pub nonce: u8,
+    pub bump: u8,
+    pub escrow_bump: u8,
 }
 
 const LOAN_PDA_SEED: &[u8] = b"loan";

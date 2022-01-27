@@ -16,6 +16,10 @@ describe("dexloan", () => {
   let associatedAddress;
   let mint;
 
+  const loanAmount = new anchor.BN(anchor.web3.LAMPORTS_PER_SOL);
+  const loanDuration = new anchor.BN(30 * 24 * 60 * 60 * 1000);
+  const basisPoints = new anchor.BN(500);
+
   before(async () => {
     await helpers.requestAirdrop(connection, provider.wallet.publicKey);
 
@@ -56,10 +60,6 @@ describe("dexloan", () => {
       program.programId
     );
 
-    const loanAmount = new anchor.BN(anchor.web3.LAMPORTS_PER_SOL);
-    const loanDuration = new anchor.BN(30 * 24 * 60 * 60 * 1000);
-    const basisPoints = new anchor.BN(500);
-
     await program.rpc.list(
       bump,
       escrowBump,
@@ -79,10 +79,28 @@ describe("dexloan", () => {
         },
       }
     );
+    const rawListingAccount = await connection.getAccountInfo(listing);
+    const rawEscrowAccount = await connection.getAccountInfo(escrow);
+
+    const rent = rawListingAccount.lamports + rawEscrowAccount.lamports;
 
     const listingAccount = await program.account.listing.fetch(listing);
-    console.log("listingAccount: ", listingAccount);
+    const borrowerTokenAccount = await mint.getOrCreateAssociatedAccountInfo(
+      keypair.publicKey
+    );
+    const escrowTokenAccount = await mint.getOrCreateAssociatedAccountInfo(
+      keypair.publicKey
+    );
+
+    assert.equal(listingAccount.active, false);
+    assert.equal(listingAccount.authority, keypair.publicKey.toString());
     assert.equal(listingAccount.basisPoints, basisPoints.toNumber());
+    assert.equal(listingAccount.duration.toNumber(), loanDuration.toNumber());
+    assert.equal(listingAccount.mint.toBase58(), mint.publicKey.toBase58());
+    assert.equal(borrowerTokenAccount.amount.toNumber(), 0);
+    assert.equal(escrowTokenAccount.amount.toNumber(), 1);
+    assert.equal(escrowTokenAccount.mint.toBase58(), mint.publicKey.toBase58());
+    assert.equal(escrowTokenAccount.owner.toBase58(), escrow.toBase58());
   });
 
   it("Allows loans to be given", async () => {
@@ -101,6 +119,16 @@ describe("dexloan", () => {
       lenderProgram.programId
     );
 
+    const borrowerPreLoanBalance = await connection.getBalance(
+      keypair.publicKey
+    );
+    const lenderPreLoanBalance = await connection.getBalance(
+      lenderKeypair.publicKey
+    );
+
+    console.log("borrowerPreLoanBalance: ", borrowerPreLoanBalance);
+    console.log("lenderPreloanBalance: ", lenderPreLoanBalance);
+
     await lenderProgram.rpc.makeLoan(loanBump, {
       accounts: {
         listing,
@@ -116,5 +144,15 @@ describe("dexloan", () => {
 
     const loanAccount = await program.account.loan.fetch(loan);
     console.log("loanAccount: ", loanAccount);
+    const borrowerPostLoanBalance = await connection.getBalance(
+      keypair.publicKey
+    );
+    const lenderPostLoanBalance = await connection.getBalance(
+      lenderKeypair.publicKey
+    );
+    console.log("borrowerPostLoanBalance: ", borrowerPostLoanBalance);
+    console.log("lenderPostLoanBalance: ", lenderPostLoanBalance);
+
+    assert(borrowerPostLoanBalance > borrowerPreLoanBalance);
   });
 });

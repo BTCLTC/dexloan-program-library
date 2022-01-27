@@ -51,14 +51,13 @@ pub mod dexloan {
 
         anchor_lang::solana_program::program::invoke(
             &anchor_lang::solana_program::system_instruction::transfer(
-                &ctx.accounts.lender.key(),
+                &loan.lender,
                 &listing.authority,
                 listing.amount,
             ),
             &[
                 ctx.accounts.lender.to_account_info(),
                 ctx.accounts.borrower.to_account_info(),
-                ctx.accounts.system_program.to_account_info(),
             ]
         )?;
 
@@ -121,8 +120,10 @@ pub struct List<'info> {
 #[derive(Accounts)]
 #[instruction(loan_bump: u8)]
 pub struct MakeLoan<'info> {
+    #[account(mut)]
     pub borrower: AccountInfo<'info>,
     /// The lender
+    #[account(mut)]
     pub lender: Signer<'info>,
     /// The listing the loan is being issued against
     #[account(mut)]
@@ -143,7 +144,7 @@ pub struct MakeLoan<'info> {
     pub clock: Sysvar<'info, Clock>,
 }
 
-const LISTING_SIZE: usize = 1 + 8 + 32 + 8 + 2 + 32 + 32 + 1 + 100;
+const LISTING_SIZE: usize = 1 + 8 + 32 + 2 + 8 + 32 + 1 + 1 + 100;
 
 #[account]
 pub struct Listing {
@@ -153,12 +154,10 @@ pub struct Listing {
     pub amount: u64,
     /// The NFT holder
     pub authority: Pubkey,
-    /// Duration of the loan in ms
-    pub duration: u64,
     /// Annualized return
     pub basis_points: u16,
-    /// Address of the account's token vault
-    pub escrow: Pubkey,
+    /// Duration of the loan in ms
+    pub duration: u64,
     /// The mint of the token being used for collateral
     pub mint: Pubkey,
     /// Misc

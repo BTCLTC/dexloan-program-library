@@ -9,6 +9,8 @@ declare_id!("AqLBJQk2vRmJvX3hT43RQrWBfy66oXLsHYd136JHh45R");
 pub mod dexloan {
     use super::*;
 
+    pub const SECONDS_PER_YEAR: u64 = 31536000; 
+
     pub fn list(
         ctx: Context<List>,
         bump: u8,
@@ -17,21 +19,22 @@ pub mod dexloan {
         duration: u64,
         basis_points: u16,
     ) -> ProgramResult {
-        let listing = &mut ctx.accounts.listing;
+        let listing = &mut ctx.accounts.listing_account;
 
-        listing.active = false;
         listing.amount = amount;
         listing.authority = ctx.accounts.borrower.key();
-        listing.duration = duration;
         listing.basis_points = basis_points;
-        listing.mint = ctx.accounts.mint.key();
+        listing.duration = duration;
+        listing.escrow = ctx.accounts.escrow_account.key();
         listing.escrow_bump = escrow_bump;
+        listing.mint = ctx.accounts.mint.key();
+        listing.state = ListingState::Listed as u8;
         listing.bump = bump;
 
         let cpi_program = ctx.accounts.token_program.to_account_info();
         let cpi_accounts = anchor_spl::token::Transfer {
-            from: ctx.accounts.borrower_tokens.to_account_info(),
-            to: ctx.accounts.escrow.to_account_info(),
+            from: ctx.accounts.borrower_deposit_token_account.to_account_info(),
+            to: ctx.accounts.escrow_account.to_account_info(),
             authority: ctx.accounts.borrower.to_account_info(),
         };
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
@@ -40,14 +43,14 @@ pub mod dexloan {
     }
 
     pub fn make_loan(ctx: Context<MakeLoan>, nonce: u8) -> ProgramResult {
-        let loan = &mut ctx.accounts.loan;
-        let listing = &mut ctx.accounts.listing;
+        let loan = &mut ctx.accounts.loan_account;
+        let listing = &mut ctx.accounts.listing_account;
 
-        loan.start_date = ctx.accounts.clock.unix_timestamp;
+        listing.state = ListingState::Active as u8;
         loan.lender = ctx.accounts.lender.key();
         loan.listing = listing.key();
         loan.nonce = nonce;
-        listing.active = true;
+        loan.start_date = ctx.accounts.clock.unix_timestamp;
 
         anchor_lang::solana_program::program::invoke(
             &anchor_lang::solana_program::system_instruction::transfer(
@@ -64,9 +67,49 @@ pub mod dexloan {
         Ok(())
     }
 
-    // pub fn repay() -> ProgramResult {
-    //     Ok(())
-    // }
+    pub fn repay_loan(ctx: Context<RepayLoan>) -> ProgramResult {
+        let loan = &mut ctx.accounts.loan_account;
+        let listing = &mut ctx.accounts.listing_account;
+
+        let unix_timestamp = ctx.accounts.clock.unix_timestamp as u64;
+        let loan_start_date = loan.start_date as u64;
+        let loan_basis_points = listing.basis_points as u64;
+        let loan_duration = unix_timestamp - loan_start_date;
+        let pro_rata_interest_rate = ((loan_basis_points / 10000) / SECONDS_PER_YEAR) * loan_duration;
+        let interest_due = listing.amount * pro_rata_interest_rate;
+        let amount_due = listing.amount + interest_due;
+
+        listing.state = ListingState::Repaid as u8;
+
+        anchor_lang::solana_program::program::invoke(
+            &anchor_lang::solana_program::system_instruction::transfer(
+                &listing.authority,
+                &loan.lender,
+                amount_due,
+            ),
+            &[
+                ctx.accounts.borrower.to_account_info(),
+                ctx.accounts.lender.to_account_info(),
+            ]
+        )?;
+
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_accounts = anchor_spl::token::Transfer {
+            from: ctx.accounts.escrow_account.to_account_info(),
+            to: ctx.accounts.borrower_deposit_token_account.to_account_info(),
+            authority: ctx.accounts.escrow_account.to_account_info(),
+        };
+        let seeds = &[
+            b"escrow",
+            ctx.accounts.mint.to_account_info().key.as_ref(),
+            &[ctx.accounts.listing_account.escrow_bump],
+        ];
+        let signer = &[&seeds[..]];
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+        anchor_spl::token::transfer(cpi_ctx, 1)?;
+
+        Ok(())
+    }
 
     // pub fn repossess() -> ProgramResult {
     //     Ok(())
@@ -86,7 +129,7 @@ pub struct List<'info> {
     /// The person who is listing the loan
     pub borrower: Signer<'info>,
     #[account(mut)]
-    pub borrower_tokens: Account<'info, TokenAccount>,
+    pub borrower_deposit_token_account: Account<'info, TokenAccount>,
     /// The new listing account
     #[account(
         init,
@@ -95,8 +138,8 @@ pub struct List<'info> {
         bump = bump,
         space = LISTING_SIZE,
     )]
-    pub listing: Account<'info, Listing>,
-    // This is where we'll store the offer maker's tokens.
+    pub listing_account: Account<'info, Listing>,
+    /// This is where we'll store the offer maker's tokens.
     #[account(
         init,
         payer = borrower,
@@ -107,9 +150,9 @@ pub struct List<'info> {
         // account, so we need to use some program-derived address here.
         // The escrow token account itself already lives at a program-derived
         // address, so we can set its authority to be its own address.
-        token::authority = escrow,
+        token::authority = escrow_account,
     )]
-    pub escrow: Account<'info, TokenAccount>,
+    pub escrow_account: Account<'info, TokenAccount>,
     pub mint: Account<'info, Mint>,
     /// Misc
     pub system_program: Program<'info, System>,
@@ -127,16 +170,16 @@ pub struct MakeLoan<'info> {
     pub lender: Signer<'info>,
     /// The listing the loan is being issued against
     #[account(mut)]
-    pub listing: Account<'info, Listing>,
+    pub listing_account: Account<'info, Listing>,
     /// The new loan account
     #[account(
         init,
         payer = lender,
-        seeds = [b"loan", listing.key().as_ref()],
+        seeds = [b"loan", listing_account.key().as_ref()],
         space = LOAN_SIZE,
         bump = loan_bump,
     )]
-    pub loan: Account<'info, Loan>,
+    pub loan_account: Account<'info, Loan>,
     pub mint: Account<'info, Mint>,
     /// Misc
     pub system_program: Program<'info, System>,
@@ -144,20 +187,50 @@ pub struct MakeLoan<'info> {
     pub clock: Sysvar<'info, Clock>,
 }
 
-const LISTING_SIZE: usize = 1 + 8 + 32 + 2 + 8 + 32 + 1 + 1 + 100;
+#[derive(Accounts)]
+pub struct RepayLoan<'info> {
+    #[account(mut)]
+    pub borrower: Signer<'info>,
+    #[account(mut)]
+    pub borrower_deposit_token_account: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub escrow_account: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub lender: AccountInfo<'info>,
+    #[account(mut)]
+    pub listing_account: Account<'info, Listing>,
+    pub loan_account: Account<'info, Loan>,
+    pub mint: Account<'info, Mint>,
+    /// Misc
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub clock: Sysvar<'info, Clock>,
+}
+
+const LISTING_SIZE: usize = 1 + 8 + 32 + 2 + 8 + 32 + 32 + 1 + 1 + 100;
+
+#[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
+pub enum ListingState {
+    Listed = 0,
+    Active = 1,
+    Repossesed = 2,
+    Repaid = 3,
+}
 
 #[account]
 pub struct Listing {
     /// Whether the loan is active
-    pub active: bool,
+    pub state: u8,
     /// The amount of the loan
     pub amount: u64,
     /// The NFT holder
     pub authority: Pubkey,
     /// Annualized return
     pub basis_points: u16,
-    /// Duration of the loan in ms
+    /// Duration of the loan in seconds
     pub duration: u64,
+    /// The escrow where the collateral NFT is held
+    pub escrow: Pubkey,
     /// The mint of the token being used for collateral
     pub mint: Pubkey,
     /// Misc

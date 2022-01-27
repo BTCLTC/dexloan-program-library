@@ -9,58 +9,70 @@ describe("dexloan", () => {
     "http://localhost:8899",
     anchor.Provider.defaultOptions().preflightCommitment
   );
-  const keypair = anchor.web3.Keypair.generate();
-  const provider = helpers.getProvider(connection, keypair);
-  const program = helpers.getProgram(provider);
+  const borrowerKeypair = anchor.web3.Keypair.generate();
+  const borrowerProvider = helpers.getProvider(connection, borrowerKeypair);
+  const borrowerProgram = helpers.getProgram(borrowerProvider);
+
+  const lenderKeypair = anchor.web3.Keypair.generate();
+  const lenderProvider = helpers.getProvider(connection, lenderKeypair);
+  const lenderProgram = helpers.getProgram(lenderProvider);
 
   let associatedAddress;
-  let mint;
+  let mint: splToken.Token;
 
   const loanAmount = new anchor.BN(anchor.web3.LAMPORTS_PER_SOL);
-  const loanDuration = new anchor.BN(30 * 24 * 60 * 60 * 1000);
+  const loanDuration = new anchor.BN(30 * 24 * 60 * 60); // 30 days
   const basisPoints = new anchor.BN(500);
 
   before(async () => {
-    await helpers.requestAirdrop(connection, provider.wallet.publicKey);
+    await helpers.requestAirdrop(connection, borrowerKeypair.publicKey);
+    await helpers.requestAirdrop(connection, lenderKeypair.publicKey);
 
     // Create the Mint Account for the NFT
     mint = await splToken.Token.createMint(
       connection,
-      keypair,
-      keypair.publicKey,
+      borrowerKeypair,
+      borrowerKeypair.publicKey,
       null,
       0,
       splToken.TOKEN_PROGRAM_ID
     );
 
     associatedAddress = await mint.getOrCreateAssociatedAccountInfo(
-      keypair.publicKey
+      borrowerKeypair.publicKey
     );
 
-    await mint.mintTo(associatedAddress.address, keypair.publicKey, [], 1);
+    await mint.mintTo(
+      associatedAddress.address,
+      borrowerKeypair.publicKey,
+      [],
+      1
+    );
 
     // Reset mint_authority to null from the user to prevent further minting
     await mint.setAuthority(
       mint.publicKey,
       null,
       "MintTokens",
-      keypair.publicKey,
+      borrowerKeypair.publicKey,
       []
     );
   });
 
   it("Creates a dexloan listing", async () => {
-    const [listing, bump] = await anchor.web3.PublicKey.findProgramAddress(
-      [Buffer.from("listing"), mint.publicKey.toBuffer()],
-      program.programId
-    );
+    const [listingAccount, bump] =
+      await anchor.web3.PublicKey.findProgramAddress(
+        [Buffer.from("listing"), mint.publicKey.toBuffer()],
+        borrowerProgram.programId
+      );
 
-    const [escrow, escrowBump] = await anchor.web3.PublicKey.findProgramAddress(
-      [Buffer.from("escrow"), mint.publicKey.toBuffer()],
-      program.programId
-    );
+    const [escrowAccount, escrowBump] =
+      await anchor.web3.PublicKey.findProgramAddress(
+        [Buffer.from("escrow"), mint.publicKey.toBuffer()],
+        borrowerProgram.programId
+      );
 
-    await program.rpc.list(
+    await borrowerProgram.rpc.list(
       bump,
       escrowBump,
       loanAmount,
@@ -68,10 +80,10 @@ describe("dexloan", () => {
       basisPoints,
       {
         accounts: {
-          escrow,
-          listing,
-          borrower: provider.wallet.publicKey,
-          borrowerTokens: associatedAddress.address,
+          escrowAccount,
+          listingAccount,
+          borrower: borrowerKeypair.publicKey,
+          borrowerDepositTokenAccount: associatedAddress.address,
           mint: mint.publicKey,
           tokenProgram: splToken.TOKEN_PROGRAM_ID,
           rent: anchor.web3.SYSVAR_RENT_PUBKEY,
@@ -79,61 +91,45 @@ describe("dexloan", () => {
         },
       }
     );
-    const rawListingAccount = await connection.getAccountInfo(listing);
-    const rawEscrowAccount = await connection.getAccountInfo(escrow);
 
-    const rent = rawListingAccount.lamports + rawEscrowAccount.lamports;
-
-    const listingAccount = await program.account.listing.fetch(listing);
-    const borrowerTokenAccount = await mint.getOrCreateAssociatedAccountInfo(
-      keypair.publicKey
+    const listing = await borrowerProgram.account.listing.fetch(listingAccount);
+    const borrowerTokenAccount = await mint.getAccountInfo(
+      associatedAddress.address
     );
-    const escrowTokenAccount = await mint.getOrCreateAssociatedAccountInfo(
-      keypair.publicKey
-    );
+    const escrowTokenAccount = await mint.getAccountInfo(listing.escrow);
 
-    assert.equal(listingAccount.active, false);
-    assert.equal(listingAccount.authority, keypair.publicKey.toString());
-    assert.equal(listingAccount.basisPoints, basisPoints.toNumber());
-    assert.equal(listingAccount.duration.toNumber(), loanDuration.toNumber());
-    assert.equal(listingAccount.mint.toBase58(), mint.publicKey.toBase58());
+    // assert.equal(listing.active, false);
+    assert.equal(listing.authority, borrowerKeypair.publicKey.toString());
+    assert.equal(listing.basisPoints, basisPoints.toNumber());
+    assert.equal(listing.duration.toNumber(), loanDuration.toNumber());
+    assert.equal(listing.mint.toBase58(), mint.publicKey.toBase58());
     assert.equal(borrowerTokenAccount.amount.toNumber(), 0);
     assert.equal(escrowTokenAccount.amount.toNumber(), 1);
     assert.equal(escrowTokenAccount.mint.toBase58(), mint.publicKey.toBase58());
-    assert.equal(escrowTokenAccount.owner.toBase58(), escrow.toBase58());
+    assert.equal(listing.state, 0);
+    assert.equal(escrowTokenAccount.owner.toBase58(), escrowAccount.toBase58());
   });
 
   it("Allows loans to be given", async () => {
-    const lenderKeypair = anchor.web3.Keypair.generate();
-    await helpers.requestAirdrop(connection, lenderKeypair.publicKey);
-    const lenderProvider = helpers.getProvider(connection, lenderKeypair);
-    const lenderProgram = helpers.getProgram(lenderProvider);
-
-    const [listing] = await anchor.web3.PublicKey.findProgramAddress(
+    const [listingAccount] = await anchor.web3.PublicKey.findProgramAddress(
       [Buffer.from("listing"), mint.publicKey.toBuffer()],
       lenderProgram.programId
     );
-
-    const [loan, loanBump] = await anchor.web3.PublicKey.findProgramAddress(
-      [Buffer.from("loan"), listing.toBuffer()],
-      lenderProgram.programId
-    );
+    const [loanAccount, loanBump] =
+      await anchor.web3.PublicKey.findProgramAddress(
+        [Buffer.from("loan"), listingAccount.toBuffer()],
+        lenderProgram.programId
+      );
 
     const borrowerPreLoanBalance = await connection.getBalance(
-      keypair.publicKey
+      borrowerKeypair.publicKey
     );
-    const lenderPreLoanBalance = await connection.getBalance(
-      lenderKeypair.publicKey
-    );
-
-    console.log("borrowerPreLoanBalance: ", borrowerPreLoanBalance);
-    console.log("lenderPreloanBalance: ", lenderPreLoanBalance);
 
     await lenderProgram.rpc.makeLoan(loanBump, {
       accounts: {
-        listing,
-        loan,
-        borrower: keypair.publicKey,
+        listingAccount,
+        loanAccount,
+        borrower: borrowerKeypair.publicKey,
         lender: lenderKeypair.publicKey,
         mint: mint.publicKey,
         systemProgram: anchor.web3.SystemProgram.programId,
@@ -142,17 +138,73 @@ describe("dexloan", () => {
       },
     });
 
-    const loanAccount = await program.account.loan.fetch(loan);
-    console.log("loanAccount: ", loanAccount);
+    const loan = await borrowerProgram.account.loan.fetch(loanAccount);
+    const listing = await borrowerProgram.account.listing.fetch(listingAccount);
     const borrowerPostLoanBalance = await connection.getBalance(
-      keypair.publicKey
+      borrowerKeypair.publicKey
     );
-    const lenderPostLoanBalance = await connection.getBalance(
+
+    assert.equal(
+      borrowerPreLoanBalance + loanAmount.toNumber(),
+      borrowerPostLoanBalance
+    );
+    // assert.equal(listing.active, true);
+    assert.equal(loan.listing.toBase58(), listingAccount.toBase58());
+    assert.equal(loan.lender.toBase58(), lenderKeypair.publicKey.toBase58());
+    assert.equal(listing.state, 1);
+    assert(
+      loan.startDate.toNumber() > 0 && loan.startDate.toNumber() < Date.now()
+    );
+  });
+
+  it("Allows loans to be repaid", async () => {
+    const [listingAccount] = await anchor.web3.PublicKey.findProgramAddress(
+      [Buffer.from("listing"), mint.publicKey.toBuffer()],
+      lenderProgram.programId
+    );
+    const [loanAccount] = await anchor.web3.PublicKey.findProgramAddress(
+      [Buffer.from("loan"), listingAccount.toBuffer()],
+      lenderProgram.programId
+    );
+    const [escrowAccount] = await anchor.web3.PublicKey.findProgramAddress(
+      [Buffer.from("escrow"), mint.publicKey.toBuffer()],
+      lenderProgram.programId
+    );
+
+    const lenderPreRepaymentBalance = await connection.getBalance(
       lenderKeypair.publicKey
     );
-    console.log("borrowerPostLoanBalance: ", borrowerPostLoanBalance);
-    console.log("lenderPostLoanBalance: ", lenderPostLoanBalance);
 
-    assert(borrowerPostLoanBalance > borrowerPreLoanBalance);
+    await borrowerProgram.rpc.repayLoan({
+      accounts: {
+        listingAccount,
+        loanAccount,
+        escrowAccount,
+        borrower: borrowerKeypair.publicKey,
+        borrowerDepositTokenAccount: associatedAddress.address,
+        lender: lenderKeypair.publicKey,
+        mint: mint.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        tokenProgram: splToken.TOKEN_PROGRAM_ID,
+        clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
+      },
+    });
+
+    const listing = await borrowerProgram.account.listing.fetch(listingAccount);
+    const lenderPostRepaymentBalance = await connection.getBalance(
+      lenderKeypair.publicKey
+    );
+    const borrowerTokenAccount = await mint.getAccountInfo(
+      associatedAddress.address
+    );
+    const escrowTokenAccount = await mint.getAccountInfo(listing.escrow);
+
+    assert.equal(borrowerTokenAccount.amount.toNumber(), 1);
+    assert.equal(escrowTokenAccount.amount.toNumber(), 0);
+    assert(
+      lenderPostRepaymentBalance ===
+        lenderPreRepaymentBalance + loanAmount.toNumber()
+    );
+    assert.equal(listing.state, 3);
   });
 });

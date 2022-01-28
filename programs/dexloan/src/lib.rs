@@ -11,8 +11,8 @@ pub mod dexloan {
 
     pub const SECONDS_PER_YEAR: u64 = 31536000; 
 
-    pub fn list(
-        ctx: Context<List>,
+    pub fn make_listing(
+        ctx: Context<MakeListing>,
         bump: u8,
         escrow_bump: u8,
         amount: u64,
@@ -44,8 +44,6 @@ pub mod dexloan {
 
     pub fn cancel_listing(ctx: Context<CancelListing>) -> Result<()> {
         let listing = &mut ctx.accounts.listing_account;
-
-        // TODO check listing state
         
         listing.state = ListingState::Cancelled as u8;
 
@@ -179,7 +177,7 @@ pub mod dexloan {
     duration: u64,
     basis_points: u16,
 )]
-pub struct List<'info> {
+pub struct MakeListing<'info> {
     /// The person who is listing the loan
     pub borrower: Signer<'info>,
     #[account(mut)]
@@ -193,9 +191,9 @@ pub struct List<'info> {
         space = LISTING_SIZE,
     )]
     pub listing_account: Account<'info, Listing>,
-    /// This is where we'll store the offer maker's tokens.
+    /// This is where we'll store the borrower's token
     #[account(
-        init,
+        init_if_needed,
         payer = borrower,
         seeds = [b"escrow", mint.key().as_ref()],
         bump = escrow_bump,
@@ -219,7 +217,12 @@ pub struct CancelListing<'info> {
     pub borrower: Signer<'info>,
     #[account(mut)]
     pub borrower_deposit_token_account: Account<'info, TokenAccount>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = listing_account.authority == *borrower.key,
+        constraint = listing_account.mint == mint.key(),
+        constraint = listing_account.state == ListingState::Listed as u8,
+    )]
     pub listing_account: Account<'info, Listing>,
     #[account(mut)]
     pub escrow_account: Account<'info, TokenAccount>,
@@ -238,7 +241,12 @@ pub struct MakeLoan<'info> {
     #[account(mut)]
     pub lender: Signer<'info>,
     /// The listing the loan is being issued against
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = listing_account.authority == *borrower.key,
+        constraint = listing_account.mint == mint.key(),
+        constraint = listing_account.state == ListingState::Listed as u8,
+    )]
     pub listing_account: Account<'info, Listing>,
     /// The new loan account
     #[account(
@@ -266,8 +274,17 @@ pub struct RepayLoan<'info> {
     pub escrow_account: Account<'info, TokenAccount>,
     #[account(mut)]
     pub lender: AccountInfo<'info>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = listing_account.authority == *borrower.key,
+        constraint = listing_account.mint == mint.key(),
+        constraint = listing_account.state == ListingState::Active as u8,
+    )]
     pub listing_account: Account<'info, Listing>,
+    #[account(
+        constraint = loan_account.lender == *lender.key,
+        constraint = loan_account.listing == listing_account.key(),
+    )]
     pub loan_account: Account<'info, Loan>,
     pub mint: Account<'info, Mint>,
     /// Misc
@@ -283,14 +300,22 @@ pub struct RepossessCollateral<'info> {
     #[account(mut)]
     pub lender: Signer<'info>,
     #[account(
-        init,
+        init_if_needed,
         payer = lender,
         token::mint = mint,
         token::authority = lender,
     )]
     pub lender_token_account: Account<'info, TokenAccount>,
-    #[account(mut)]
+    #[account(
+        constraint = listing_account.mint == mint.key(),
+        constraint = listing_account.state == ListingState::Active as u8,
+    )]
     pub listing_account: Account<'info, Listing>,
+    #[account(
+        mut,
+        constraint = loan_account.lender == *lender.key,
+        constraint = loan_account.listing == listing_account.key(),
+    )]
     pub loan_account: Account<'info, Loan>,
     pub mint: Account<'info, Mint>,
     /// Misc

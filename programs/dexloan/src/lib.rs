@@ -42,6 +42,31 @@ pub mod dexloan {
         Ok(())
     }
 
+    pub fn cancel_listing(ctx: Context<CancelListing>) -> Result<()> {
+        let listing = &mut ctx.accounts.listing_account;
+
+        // TODO check listing state
+        
+        listing.state = ListingState::Cancelled as u8;
+
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_accounts = anchor_spl::token::Transfer {
+            from: ctx.accounts.escrow_account.to_account_info(),
+            to: ctx.accounts.borrower_deposit_token_account.to_account_info(),
+            authority: ctx.accounts.escrow_account.to_account_info(),
+        };
+        let seeds = &[
+            b"escrow",
+            ctx.accounts.mint.to_account_info().key.as_ref(),
+            &[ctx.accounts.listing_account.escrow_bump],
+        ];
+        let signer = &[&seeds[..]];
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+        anchor_spl::token::transfer(cpi_ctx, 1)?;
+        
+        Ok(())
+    }
+
     pub fn make_loan(ctx: Context<MakeLoan>, nonce: u8) -> ProgramResult {
         let loan = &mut ctx.accounts.loan_account;
         let listing = &mut ctx.accounts.listing_account;
@@ -111,9 +136,38 @@ pub mod dexloan {
         Ok(())
     }
 
-    // pub fn repossess() -> ProgramResult {
-    //     Ok(())
-    // }
+    pub fn repossess_collateral(ctx: Context<RepossessCollateral>) -> Result<()> {
+        let loan = &mut ctx.accounts.loan_account;
+        let listing = &mut ctx.accounts.listing_account;
+
+
+        let unix_timestamp = ctx.accounts.clock.unix_timestamp as u64;
+        let loan_start_date = loan.start_date as u64;
+        let loan_duration = unix_timestamp - loan_start_date;
+
+        if listing.duration > loan_duration  {
+            return Err(ErrorCode::NotExpired.into())
+        }
+        
+        listing.state = ListingState::Defaulted as u8;
+
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_accounts = anchor_spl::token::Transfer {
+            from: ctx.accounts.escrow_account.to_account_info(),
+            to: ctx.accounts.lender_token_account.to_account_info(),
+            authority: ctx.accounts.escrow_account.to_account_info(),
+        };
+        let seeds = &[
+            b"escrow",
+            ctx.accounts.mint.to_account_info().key.as_ref(),
+            &[ctx.accounts.listing_account.escrow_bump],
+        ];
+        let signer = &[&seeds[..]];
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+        anchor_spl::token::transfer(cpi_ctx, 1)?;
+        
+        Ok(())
+    }
 }
 
 
@@ -158,6 +212,21 @@ pub struct List<'info> {
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
     pub rent: Sysvar<'info, Rent>,
+}
+
+#[derive(Accounts)]
+pub struct CancelListing<'info> {
+    pub borrower: Signer<'info>,
+    #[account(mut)]
+    pub borrower_deposit_token_account: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub listing_account: Account<'info, Listing>,
+    #[account(mut)]
+    pub escrow_account: Account<'info, TokenAccount>,
+    pub mint: Account<'info, Mint>,
+    /// Misc
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]
@@ -207,14 +276,39 @@ pub struct RepayLoan<'info> {
     pub clock: Sysvar<'info, Clock>,
 }
 
+#[derive(Accounts)]
+pub struct RepossessCollateral<'info> {
+    #[account(mut)]
+    pub escrow_account: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub lender: Signer<'info>,
+    #[account(
+        init,
+        payer = lender,
+        token::mint = mint,
+        token::authority = lender,
+    )]
+    pub lender_token_account: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub listing_account: Account<'info, Listing>,
+    pub loan_account: Account<'info, Loan>,
+    pub mint: Account<'info, Mint>,
+    /// Misc
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub clock: Sysvar<'info, Clock>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
 const LISTING_SIZE: usize = 1 + 8 + 32 + 2 + 8 + 32 + 32 + 1 + 1 + 100;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
 pub enum ListingState {
     Listed = 0,
     Active = 1,
-    Repossesed = 2,
-    Repaid = 3,
+    Repaid = 2,
+    Cancelled = 3,
+    Defaulted = 4,
 }
 
 #[account]
@@ -251,4 +345,10 @@ pub struct Loan {
     /// Misc
     pub nonce: u8,
     
+}
+
+#[error]
+pub enum ErrorCode {
+    #[msg("The loan repayment period has not yet expired")]
+    NotExpired,
 }

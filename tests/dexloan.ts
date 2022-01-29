@@ -78,7 +78,7 @@ describe("dexloan", () => {
     );
   });
 
-  it.only("Allows loans to be repaid", async () => {
+  it("Allows loans to be repaid", async () => {
     const options = {
       basisPoints: 700,
       loanAmount: anchor.web3.LAMPORTS_PER_SOL * 2,

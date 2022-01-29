@@ -144,7 +144,7 @@ pub mod dexloan {
         let loan_duration = unix_timestamp - loan_start_date;
 
         if listing.duration > loan_duration  {
-            return Err(ErrorCode::NotExpired.into())
+            return Err(ErrorCode::NotOverdue.into())
         }
         
         listing.state = ListingState::Defaulted as u8;
@@ -180,7 +180,10 @@ pub mod dexloan {
 pub struct MakeListing<'info> {
     /// The person who is listing the loan
     pub borrower: Signer<'info>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = borrower_deposit_token_account.mint == mint.key()
+    )]
     pub borrower_deposit_token_account: Account<'info, TokenAccount>,
     /// The new listing account
     #[account(
@@ -299,14 +302,10 @@ pub struct RepossessCollateral<'info> {
     pub escrow_account: Account<'info, TokenAccount>,
     #[account(mut)]
     pub lender: Signer<'info>,
-    #[account(
-        init_if_needed,
-        payer = lender,
-        token::mint = mint,
-        token::authority = lender,
-    )]
+    #[account(mut)]
     pub lender_token_account: Account<'info, TokenAccount>,
     #[account(
+        mut,
         constraint = listing_account.mint == mint.key(),
         constraint = listing_account.state == ListingState::Active as u8,
     )]
@@ -374,6 +373,6 @@ pub struct Loan {
 
 #[error]
 pub enum ErrorCode {
-    #[msg("The loan repayment period has not yet expired")]
-    NotExpired,
+    #[msg("This loan is not overdue")]
+    NotOverdue,
 }

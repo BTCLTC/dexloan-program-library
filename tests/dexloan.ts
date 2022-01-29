@@ -78,14 +78,13 @@ describe("dexloan", () => {
     );
   });
 
-  it("Allows loans to be repaid", async () => {
+  it.only("Allows loans to be repaid", async () => {
     const options = {
-      basisPoints: 500,
-      loanAmount: anchor.web3.LAMPORTS_PER_SOL,
+      basisPoints: 700,
+      loanAmount: anchor.web3.LAMPORTS_PER_SOL * 2,
       loanDuration: 30 * 24 * 60 * 60, // 30 days
     };
     const borrower = await helpers.createListing(connection, options);
-
     const lender = await helpers.createLoan(connection, borrower);
     const lenderPreRepaymentBalance = await connection.getBalance(
       lender.keypair.publicKey

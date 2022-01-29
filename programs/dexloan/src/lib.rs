@@ -9,7 +9,7 @@ declare_id!("AqLBJQk2vRmJvX3hT43RQrWBfy66oXLsHYd136JHh45R");
 pub mod dexloan {
     use super::*;
 
-    pub const SECONDS_PER_YEAR: u64 = 31536000; 
+    pub const SECONDS_PER_YEAR: u64 = 31_536_000; 
 
     pub fn make_listing(
         ctx: Context<MakeListing>,
@@ -94,13 +94,17 @@ pub mod dexloan {
         let loan = &mut ctx.accounts.loan_account;
         let listing = &mut ctx.accounts.listing_account;
 
-        let unix_timestamp = ctx.accounts.clock.unix_timestamp as u64;
-        let loan_start_date = loan.start_date as u64;
+        let unix_timestamp = ctx.accounts.clock.unix_timestamp;
+        let loan_start_date = loan.start_date;
         let loan_basis_points = listing.basis_points as u64;
-        let loan_duration = unix_timestamp - loan_start_date;
-        let pro_rata_interest_rate = ((loan_basis_points / 10000) / SECONDS_PER_YEAR) * loan_duration;
+        let loan_duration = (unix_timestamp - loan_start_date) as u64;
+        let pro_rata_interest_rate = ((loan_basis_points / 100) / SECONDS_PER_YEAR) * loan_duration;
         let interest_due = listing.amount * pro_rata_interest_rate;
         let amount_due = listing.amount + interest_due;
+
+        println!("Loan amount: {}", listing.amount);
+        println!("Interest due: {}", interest_due);
+        println!("Total amount due: {}", amount_due);
 
         listing.state = ListingState::Repaid as u8;
 

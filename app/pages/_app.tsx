@@ -1,3 +1,8 @@
+import {
+  defaultTheme,
+  SSRProvider,
+  Provider as SpectrumProvider,
+} from "@adobe/react-spectrum";
 import * as anchor from "@project-serum/anchor";
 import {
   ConnectionProvider,
@@ -7,6 +12,7 @@ import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
 import { AppProps } from "next/app";
 import { useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
+import "../styles/globals.css";
 
 function MyApp({ Component, pageProps }: AppProps) {
   // You can also provide a custom RPC endpoint
@@ -19,13 +25,17 @@ function MyApp({ Component, pageProps }: AppProps) {
   const queryClient = useMemo(() => new QueryClient(), []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ConnectionProvider endpoint={endpoint}>
-        <WalletProvider wallets={wallets} autoConnect>
-          <Component {...pageProps} />
-        </WalletProvider>
-      </ConnectionProvider>
-    </QueryClientProvider>
+    <SSRProvider>
+      <SpectrumProvider theme={defaultTheme}>
+        <QueryClientProvider client={queryClient}>
+          <ConnectionProvider endpoint={endpoint}>
+            <WalletProvider wallets={wallets} autoConnect>
+              <Component {...pageProps} />
+            </WalletProvider>
+          </ConnectionProvider>
+        </QueryClientProvider>
+      </SpectrumProvider>
+    </SSRProvider>
   );
 }
 

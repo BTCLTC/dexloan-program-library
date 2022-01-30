@@ -5,7 +5,7 @@ dexloan = "AqLBJQk2vRmJvX3hT43RQrWBfy66oXLsHYd136JHh45R"
 url = "https://anchor.projectserum.com"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "/Users/grantfindlay/.config/solana/id.json"
 
 [scripts]

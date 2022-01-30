@@ -38,3 +38,7 @@ export function useMetadataFileQuery(uri?: string) {
     }
   );
 }
+
+export function useListingsQuery(connection: anchor.web3.Connection) {
+  return useQuery(["listings"], () => api.getListings(connection));
+}

@@ -23,18 +23,59 @@ export function getProvider(
   );
 }
 
+enum ListingState {
+  Listed = 0,
+  Active = 1,
+  Repaid = 2,
+  Cancelled = 3,
+  Defaulted = 4,
+}
+
 export async function getListings(
-  program: anchor.Program<Dexloan>,
-  state: number = 0
+  connection: anchor.web3.Connection,
+  state: ListingState = ListingState.Listed
 ) {
-  return program.account.listing.all([
+  const program = getProgram(getProvider(connection, anchor.Wallet));
+
+  const listings = await program.account.listing.all([
     {
       memcmp: {
         offset: 0,
-        bytes: bs58.encode(Buffer.from([state])),
+        bytes: bs58.encode(new Uint8Array(state)),
       },
     },
   ]);
+
+  const metadataAddresses = await Promise.all(
+    listings.map((listing) => Metadata.getPDA(listing.account.mint))
+  );
+
+  const rawMetadataAccounts = await connection.getMultipleAccountsInfo(
+    metadataAddresses
+  );
+
+  const combinedAccounts = rawMetadataAccounts.map((account, index) => {
+    if (account) {
+      try {
+        const metadata = new Metadata(
+          metadataAddresses[index],
+          account as anchor.web3.AccountInfo<Buffer>
+        );
+
+        return {
+          metadata,
+          listing: listings[index],
+        };
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  console.log(combinedAccounts);
+
+  return combinedAccounts;
 }
 
 export async function getNFTs(
@@ -49,6 +90,8 @@ export async function getNFTs(
     rawTokenAccounts.value.map(
       ({ pubkey, account }) => new TokenAccount(pubkey, account)
     )
+  ).then((accounts) =>
+    accounts.filter((account) => account.data.amount.toNumber() === 1)
   );
 
   const metadataAddresses = await Promise.all(

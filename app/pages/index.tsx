@@ -11,6 +11,7 @@ import {
   Flex,
   Text,
   View,
+  Link as SpectrumLink,
 } from "@adobe/react-spectrum";
 import { useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import type { NextPage } from "next";
@@ -22,7 +23,7 @@ import * as api from "../lib/api";
 import { useListingsQuery } from "../hooks/query";
 import { Card } from "../components/card";
 import { ProgressCircle } from "../components/progress";
-import { Body, Detail, Typography } from "../components/typography";
+import { Body, Heading, Typography } from "../components/typography";
 
 const Listings: NextPage = () => {
   const router = useRouter();
@@ -81,39 +82,42 @@ const Listings: NextPage = () => {
                 uri={item.metadata.data?.data?.uri}
               >
                 <Typography>
-                  <Body>
-                    <strong>{item.metadata.data?.data?.name}</strong>
-                  </Body>
-                  <Detail>
+                  <Heading size="S">{item.metadata.data?.data?.name}</Heading>
+                  <Body size="S">
+                    Lend&nbsp;
                     {item.listing.account.amount.toNumber() /
                       anchor.web3.LAMPORTS_PER_SOL}
-                    &nbsp;SOL&nbsp;@&nbsp;
-                    {item.listing.account.basisPoints / 100}%
-                  </Detail>
+                    &nbsp;SOL for upto&nbsp;
+                    <strong>
+                      {item.listing.account.duration.toNumber() /
+                        60 /
+                        60 /
+                        24 /
+                        30}
+                      &nbsp;months @&nbsp;
+                    </strong>
+                    <strong>{item.listing.account.basisPoints / 100}%</strong>
+                    &nbsp;APY.{" "}
+                    <SpectrumLink>
+                      <a
+                        href="https://explorer.solana.com/address/${item.listing.account.mint.toBase58()}?cluster=devnet"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        View in Explorer
+                      </a>
+                    </SpectrumLink>
+                  </Body>
                 </Typography>
-                <Divider />
+                <Divider size="S" marginTop="size-600" />
                 <Flex direction="row" justifyContent="end">
-                  <ButtonGroup align="end">
-                    <Button
-                      variant="secondary"
-                      marginY="size-200"
-                      onPress={() =>
-                        window.open(
-                          `https://explorer.solana.com/address/${item.listing.account.mint.toBase58()}?cluster=devnet`,
-                          "_blank"
-                        )
-                      }
-                    >
-                      View
-                    </Button>
-                    <Button
-                      variant="cta"
-                      marginY="size-200"
-                      onPress={() => setDialog(item.listing)}
-                    >
-                      Lend
-                    </Button>
-                  </ButtonGroup>
+                  <Button
+                    variant="cta"
+                    marginY="size-200"
+                    onPress={() => setDialog(item.listing)}
+                  >
+                    Create Loan
+                  </Button>
                 </Flex>
               </Card>
             )

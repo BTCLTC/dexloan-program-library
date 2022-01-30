@@ -1,17 +1,25 @@
-import "@spectrum-css/typography/index.css";
+import "@spectrum-css/typography/dist/index-vars.css";
+import "@spectrum-css/typography/dist/vars.css";
 
 export const Typography: React.FC = (props) => (
   <div className="spectrum-Typography" {...props} />
 );
 
-export const Heading: React.FC = (props) => (
-  <h1 className="spectrum-Heading spectrum-Heading--sizeXXL" {...props} />
+interface TypographyProps {
+  size?: "XXL" | "XL" | "L" | "M" | "S" | "XS" | "XXS";
+}
+
+export const Heading: React.FC<TypographyProps> = ({
+  size = "M",
+  ...props
+}) => (
+  <h1 className={`spectrum-Heading spectrum-Heading--size${size}`} {...props} />
 );
 
-export const Body: React.FC = (props) => (
-  <p className="spectrum-Body spectrum-Body--sizeM" {...props} />
+export const Body: React.FC<TypographyProps> = ({ size = "M", ...props }) => (
+  <p className={`spectrum-Body spectrum-Body--size${size}`} {...props} />
 );
 
-export const Detail: React.FC = (props) => (
-  <p className="spectrum-Detail spectrum-Detail--sizeXL" {...props} />
+export const Detail: React.FC<TypographyProps> = ({ size = "M", ...props }) => (
+  <p className={`spectrum-Detail spectrum-Detail--size${size}`} {...props} />
 );

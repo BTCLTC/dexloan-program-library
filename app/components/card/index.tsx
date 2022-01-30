@@ -13,10 +13,10 @@ export const Card: React.FC<CardProps> = ({ elementType, children, uri }) => {
   return (
     <View
       elementType={elementType}
-      borderRadius="medium"
+      borderRadius="regular"
       borderColor="default"
       borderWidth="thin"
-      width="size-3000"
+      width="size-4600"
       overflow="hidden"
     >
       <Image
@@ -24,7 +24,7 @@ export const Card: React.FC<CardProps> = ({ elementType, children, uri }) => {
         src={metadataFileQuery.data?.image}
         objectFit="cover"
         width="100%"
-        UNSAFE_style={{ aspectRatio: "1" }}
+        height="size-1600"
       />
       <View paddingX="size-100">{children}</View>
     </View>

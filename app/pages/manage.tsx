@@ -90,15 +90,22 @@ const Manage: NextPage = () => {
                 uri={item.metadata.data?.data?.uri}
               >
                 <Typography>
-                  <Body>
-                    <strong>{item.metadata.data?.data?.name}</strong>
-                  </Body>
-                  <Detail>
+                  <Heading size="M">{item.metadata.data?.data?.name}</Heading>
+                  <Heading size="S">
                     {item.listing.account.amount.toNumber() /
                       anchor.web3.LAMPORTS_PER_SOL}
-                    &nbsp;SOL&nbsp;@&nbsp;
-                    {item.listing.account.basisPoints / 100}%
-                  </Detail>
+                    SOL
+                  </Heading>
+                  <Body>
+                    Lend for upto
+                    {item.listing.account.duration.toNumber() *
+                      60 *
+                      24 *
+                      24 *
+                      30}
+                    &nbsp;months @&nbsp;
+                    <strong>{item.listing.account.basisPoints / 100}APY</strong>
+                  </Body>
                 </Typography>
                 <Divider size="M" />
                 <Flex direction="row" justifyContent="end">

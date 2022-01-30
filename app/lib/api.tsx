@@ -39,14 +39,11 @@ export async function getListings(
 
 export async function getNFTs(
   connection: anchor.web3.Connection,
-  wallet: AnchorWallet
+  pubkey: anchor.web3.PublicKey
 ): Promise<{ accountInfo: TokenAccount; metadata: Metadata }[]> {
-  const rawTokenAccounts = await connection.getTokenAccountsByOwner(
-    wallet.publicKey,
-    {
-      programId: splToken.TOKEN_PROGRAM_ID,
-    }
-  );
+  const rawTokenAccounts = await connection.getTokenAccountsByOwner(pubkey, {
+    programId: splToken.TOKEN_PROGRAM_ID,
+  });
 
   const tokenAccounts: TokenAccount[] = await Promise.all(
     rawTokenAccounts.value.map(

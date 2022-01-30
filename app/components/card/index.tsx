@@ -2,7 +2,7 @@ import * as anchor from "@project-serum/anchor";
 import { Image, View } from "@adobe/react-spectrum";
 import Link from "next/link";
 import React from "react";
-import { useQuery } from "react-query";
+import { useMetadataFileQuery } from "../../hooks/query";
 import { Body, Typography } from "../typography";
 
 interface LinkCardProps {
@@ -37,19 +37,7 @@ interface CardProps {
 }
 
 export const Card: React.FC<CardProps> = ({ pubkey, mint, name, uri }) => {
-  const metadataFileQuery = useQuery(
-    ["nft", mint?.toBase58()],
-    () => {
-      return fetch(uri).then((response) => {
-        return response.json().then((data) => data);
-      });
-    },
-    {
-      enabled: Boolean(uri),
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
-    }
-  );
+  const metadataFileQuery = useMetadataFileQuery(uri);
 
   return (
     <View

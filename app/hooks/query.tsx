@@ -6,7 +6,7 @@ import * as api from "../lib/api";
 
 export function useNFTByOwnerQuery(
   connection: anchor.web3.Connection,
-  pubkey?: anchor.web3.PublicKey
+  pubkey: anchor.web3.PublicKey | null
 ) {
   return useQuery(
     ["wallet-nfts", pubkey?.toBase58()],

@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@adobe/react-spectrum": "^3.15.1",
+    "@metaplex-foundation/mpl-core": "^0.0.2",
     "@metaplex-foundation/mpl-token-metadata": "^1.1.0",
     "@project-serum/anchor": "^0.20.1",
     "@solana/spl-token": "^0.1.8",

@@ -18,15 +18,15 @@ const Me: NextPage = () => {
     },
     { enabled: Boolean(anchorWallet?.publicKey) }
   );
-
+  console.log(nftQuery);
   return (
     <Flex direction="row" flex={1} wrap="wrap">
       {nftQuery.data?.map((nft) => (
         <Card
-          key={nft?.accountInfo.address.toBase58()}
-          mint={nft?.accountInfo.mint}
-          name={nft?.metadata.data.name}
-          uri={nft?.metadata.data.uri}
+          key={nft.accountInfo.pubkey?.toBase58()}
+          mint={nft.accountInfo.data?.mint}
+          name={nft.metadata.data?.data?.name}
+          uri={nft.metadata.data?.data?.uri}
         />
       ))}
     </Flex>

@@ -1,9 +1,7 @@
 import * as anchor from "@project-serum/anchor";
 import * as splToken from "@solana/spl-token";
-import {
-  Metadata,
-  MetadataData,
-} from "@metaplex-foundation/mpl-token-metadata";
+import { TokenAccount } from "@metaplex-foundation/mpl-core";
+import { Metadata } from "@metaplex-foundation/mpl-token-metadata";
 import { AnchorWallet } from "@solana/wallet-adapter-react";
 import bs58 from "bs58";
 import idl from "../target/idl/dexloan.json";
@@ -39,75 +37,56 @@ export async function getListings(
   ]);
 }
 
-interface AccountInfo extends anchor.web3.AccountInfo<Buffer> {
-  address: anchor.web3.PublicKey;
-  mint: anchor.web3.PublicKey;
-  owner: anchor.web3.PublicKey;
-  amount: anchor.BN;
-}
-
-export async function decodeAccountInfo({
-  pubkey,
-  account,
-}: {
-  pubkey: anchor.web3.PublicKey;
-  account: anchor.web3.AccountInfo<Buffer>;
-}): Promise<AccountInfo> {
-  const accountInfo = splToken.AccountLayout.decode(account.data);
-
-  accountInfo.address = pubkey;
-  accountInfo.mint = new anchor.web3.PublicKey(accountInfo.mint);
-  accountInfo.owner = new anchor.web3.PublicKey(accountInfo.owner);
-  accountInfo.amount = splToken.u64.fromBuffer(accountInfo.amount);
-
-  return accountInfo;
-}
-
-export async function loadMetadata(
-  connection: anchor.web3.Connection,
-  accountInfo: AccountInfo
-): Promise<{ accountInfo: AccountInfo; metadata?: MetadataData }> {
-  try {
-    const metadataPDA = await Metadata.getPDA(accountInfo.mint);
-    const metadata = await Metadata.load(connection, metadataPDA);
-    return {
-      accountInfo,
-      metadata: metadata.data,
-    };
-  } catch {
-    // Ignore
-    return {
-      accountInfo,
-    };
-  }
-}
-
 export async function getNFTs(
   connection: anchor.web3.Connection,
   wallet: AnchorWallet
-): Promise<{ accountInfo: AccountInfo; metadata: MetadataData }[]> {
-  const tokenAccounts = await connection.getTokenAccountsByOwner(
+): Promise<{ accountInfo: TokenAccount; metadata: Metadata }[]> {
+  const rawTokenAccounts = await connection.getTokenAccountsByOwner(
     wallet.publicKey,
     {
       programId: splToken.TOKEN_PROGRAM_ID,
     }
   );
 
-  const decodedAccounts = await Promise.all(
-    tokenAccounts.value.map(decodeAccountInfo)
+  const tokenAccounts: TokenAccount[] = await Promise.all(
+    rawTokenAccounts.value.map(
+      ({ pubkey, account }) => new TokenAccount(pubkey, account)
+    )
   );
 
-  const metadataAccounts = await Promise.all(
-    decodedAccounts.map((account) => loadMetadata(connection, account))
+  const metadataAddresses = await Promise.all(
+    tokenAccounts.map((account) => Metadata.getPDA(account.data.mint))
   );
 
-  return metadataAccounts.filter(
-    (account) =>
-      account.metadata &&
-      account.metadata.data?.uri &&
-      account.metadata.data.uri.trim().length
-  ) as {
-    accountInfo: AccountInfo;
-    metadata: MetadataData;
-  }[];
+  const rawMetadataAccounts = await connection.getMultipleAccountsInfo(
+    metadataAddresses
+  );
+
+  const combinedAccounts = rawMetadataAccounts.map((account, index) => {
+    if (account) {
+      try {
+        const metadata = new Metadata(
+          metadataAddresses[index],
+          account as anchor.web3.AccountInfo<Buffer>
+        );
+
+        return {
+          metadata,
+          accountInfo: tokenAccounts[index],
+        };
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  return combinedAccounts
+    .filter(Boolean)
+    .filter(
+      (account) =>
+        account?.metadata.data &&
+        account?.metadata.data.data?.uri &&
+        account?.metadata.data.data.uri.trim().length
+    ) as { accountInfo: TokenAccount; metadata: Metadata }[];
 }

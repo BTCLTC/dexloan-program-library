@@ -1,4 +1,6 @@
 import * as anchor from "@project-serum/anchor";
+import { AnchorWallet } from "@solana/wallet-adapter-react";
+import bs58 from "bs58";
 import { useQuery } from "react-query";
 import * as api from "../lib/api";
 
@@ -40,5 +42,76 @@ export function useMetadataFileQuery(uri?: string) {
 }
 
 export function useListingsQuery(connection: anchor.web3.Connection) {
-  return useQuery(["listings"], () => api.getListings(connection));
+  return useQuery(["listings"], () =>
+    api.getListings(connection, [
+      {
+        memcmp: {
+          // filter listed
+          offset: 7 + 1,
+          bytes: bs58.encode(
+            new anchor.BN(api.ListingState.Listed).toArrayLike(Buffer)
+          ),
+        },
+      },
+    ])
+  );
+}
+
+export function useLoansQuery(
+  connection: anchor.web3.Connection,
+  wallet?: AnchorWallet
+) {
+  return useQuery(
+    ["loans"],
+    () => {
+      if (wallet) {
+        return api.getLoans(connection, [
+          {
+            memcmp: {
+              // filter lender
+              offset: 7 + 8 + 1,
+              bytes: wallet?.publicKey.toBase58(),
+            },
+          },
+        ]);
+      }
+    },
+    {
+      enabled: Boolean(wallet?.publicKey),
+    }
+  );
+}
+
+export function useBorrowingsQuery(
+  connection: anchor.web3.Connection,
+  wallet?: AnchorWallet
+) {
+  return useQuery(
+    ["borrowings"],
+    () => {
+      if (wallet) {
+        return api.getListings(connection, [
+          {
+            memcmp: {
+              // filter active
+              offset: 7 + 1,
+              bytes: bs58.encode(
+                new anchor.BN(api.ListingState.Active).toArrayLike(Buffer)
+              ),
+            },
+          },
+          {
+            memcmp: {
+              // filter authority
+              offset: 7 + 1 + 8 + 1,
+              bytes: wallet?.publicKey.toBase58(),
+            },
+          },
+        ]);
+      }
+    },
+    {
+      enabled: Boolean(wallet?.publicKey),
+    }
+  );
 }

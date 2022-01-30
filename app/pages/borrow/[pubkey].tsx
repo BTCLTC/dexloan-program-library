@@ -57,7 +57,7 @@ const BorrowPubkey: NextPage = () => {
       ) {
         const listingOptions = {
           amount: variables.amountSOL * anchor.web3.LAMPORTS_PER_SOL,
-          basisPoints: variables.returnAPY * 100,
+          basisPoints: variables.returnAPY * 10000,
           duration: variables.durationMonths * 30 * 24 * 60 * 60,
         };
 
@@ -113,8 +113,7 @@ const BorrowPubkey: NextPage = () => {
               render={({ field: { onChange }, fieldState: { invalid } }) => (
                 <NumberField
                   label="Amount"
-                  minValue={1}
-                  maxValue={24}
+                  minValue={0.1}
                   formatOptions={{
                     currency: "SOL",
                   }}

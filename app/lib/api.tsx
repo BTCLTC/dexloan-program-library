@@ -23,7 +23,7 @@ export function getProvider(
   );
 }
 
-enum ListingState {
+export enum ListingState {
   Listed = 0,
   Active = 1,
   Repaid = 2,
@@ -33,18 +33,10 @@ enum ListingState {
 
 export async function getListings(
   connection: anchor.web3.Connection,
-  state: ListingState = ListingState.Listed
+  filter: anchor.web3.GetProgramAccountsFilter[] = []
 ) {
   const program = getProgram(getProvider(connection, anchor.Wallet));
-
-  const listings = await program.account.listing.all([
-    {
-      memcmp: {
-        offset: 0,
-        bytes: bs58.encode(new Uint8Array(state)),
-      },
-    },
-  ]);
+  const listings = await program.account.listing.all(filter);
 
   const metadataAddresses = await Promise.all(
     listings.map((listing) => Metadata.getPDA(listing.account.mint))
@@ -73,7 +65,47 @@ export async function getListings(
     return null;
   });
 
-  console.log(combinedAccounts);
+  return combinedAccounts;
+}
+
+export async function getLoans(
+  connection: anchor.web3.Connection,
+  filter: anchor.web3.GetProgramAccountsFilter[] = []
+) {
+  const program = getProgram(getProvider(connection, anchor.Wallet));
+  const loans = await program.account.loan.all(filter);
+
+  const listings: any[] = await program.account.listing.fetchMultiple(
+    loans.map((loan) => loan.account.listing)
+  );
+
+  const metadataAddresses = await Promise.all(
+    listings.map((listing) => Metadata.getPDA(listing.mint))
+  );
+
+  const rawMetadataAccounts = await connection.getMultipleAccountsInfo(
+    metadataAddresses
+  );
+
+  const combinedAccounts = rawMetadataAccounts.map((account, index) => {
+    if (account) {
+      try {
+        const metadata = new Metadata(
+          metadataAddresses[index],
+          account as anchor.web3.AccountInfo<Buffer>
+        );
+
+        return {
+          metadata,
+          loan: loans[index],
+          listing: listings[index],
+        };
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
 
   return combinedAccounts;
 }
@@ -181,4 +213,36 @@ export async function createListing(
       },
     }
   );
+}
+
+export async function createLoan(
+  connection: anchor.web3.Connection,
+  wallet: AnchorWallet,
+  mint: anchor.web3.PublicKey,
+  borrower: anchor.web3.PublicKey,
+  listing: anchor.web3.PublicKey
+): Promise<anchor.web3.PublicKey> {
+  const provider = getProvider(connection, wallet as typeof anchor.Wallet);
+  const program = getProgram(provider);
+
+  const [loanAccount, loanBump] =
+    await anchor.web3.PublicKey.findProgramAddress(
+      [Buffer.from("loan"), listing.toBuffer()],
+      program.programId
+    );
+
+  await program.rpc.makeLoan(loanBump, {
+    accounts: {
+      borrower,
+      loanAccount,
+      mint,
+      listingAccount: listing,
+      lender: wallet.publicKey,
+      systemProgram: anchor.web3.SystemProgram.programId,
+      tokenProgram: splToken.TOKEN_PROGRAM_ID,
+      clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
+    },
+  });
+
+  return loanAccount;
 }

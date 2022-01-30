@@ -1,9 +1,11 @@
 import { Flex } from "@adobe/react-spectrum";
 import { useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import type { NextPage } from "next";
+import Link from "next/link";
 import { useNFTByOwnerQuery } from "../../hooks/query";
 import { Card } from "../../components/card";
 import { ProgressCircle } from "../../components/progress";
+import { Typography, Body } from "../../components/typography";
 
 const Borrow: NextPage = () => {
   const { connection } = useConnection();
@@ -20,10 +22,19 @@ const Borrow: NextPage = () => {
       {queryResult.data?.map((nft) => (
         <Card
           key={nft.accountInfo.pubkey?.toBase58()}
-          pubkey={nft.accountInfo.pubkey}
-          name={nft.metadata.data?.data?.name}
           uri={nft.metadata.data?.data?.uri}
-        />
+          elementType={(props) => (
+            <Link href={`/borrow/${nft.accountInfo.pubkey?.toBase58()}`}>
+              <a {...props} />
+            </Link>
+          )}
+        >
+          <Typography>
+            <Body>
+              <strong>{nft.metadata.data?.data?.name}</strong>
+            </Body>
+          </Typography>
+        </Card>
       ))}
     </Flex>
   );

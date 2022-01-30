@@ -5,38 +5,13 @@ import React from "react";
 import { useMetadataFileQuery } from "../../hooks/query";
 import { Body, Typography } from "../typography";
 
-interface LinkCardProps {
-  href: string;
-}
-
-const LinkCard: React.FC<LinkCardProps> = ({ href, children }) => {
-  return (
-    <View
-      elementType={(props) => (
-        <Link href={href}>
-          <a {...props} href={href} />
-        </Link>
-      )}
-      borderRadius="medium"
-      borderColor="default"
-      borderWidth="thin"
-      flex={1}
-      width="size-800"
-      overflow="hidden"
-    >
-      {children}
-    </View>
-  );
-};
-
 interface CardProps {
   pubkey: anchor.web3.PublicKey;
-  mint: anchor.web3.PublicKey;
   name: string;
   uri: string;
 }
 
-export const Card: React.FC<CardProps> = ({ pubkey, mint, name, uri }) => {
+export const Card: React.FC<CardProps> = ({ pubkey, name, uri }) => {
   const metadataFileQuery = useMetadataFileQuery(uri);
 
   return (

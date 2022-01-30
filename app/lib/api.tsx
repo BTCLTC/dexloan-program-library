@@ -87,3 +87,55 @@ export async function getNFTs(
         account?.metadata.data.data.uri.trim().length
     ) as { accountInfo: TokenAccount; metadata: Metadata }[];
 }
+
+export interface ListingOptions {
+  amount: number;
+  duration: number;
+  basisPoints: number;
+}
+
+export async function createListing(
+  connection: anchor.web3.Connection,
+  wallet: AnchorWallet,
+  mint: anchor.web3.PublicKey,
+  borrowerDepositTokenAccount: anchor.web3.PublicKey,
+  options: ListingOptions
+) {
+  const loanAmount = new anchor.BN(options.amount);
+  const loanDuration = new anchor.BN(options.duration);
+  const basisPoints = new anchor.BN(options.basisPoints);
+
+  const provider = getProvider(connection, wallet as typeof anchor.Wallet);
+  const program = getProgram(provider);
+
+  const [listingAccount, bump] = await anchor.web3.PublicKey.findProgramAddress(
+    [Buffer.from("listing"), mint.toBuffer()],
+    program.programId
+  );
+
+  const [escrowAccount, escrowBump] =
+    await anchor.web3.PublicKey.findProgramAddress(
+      [Buffer.from("escrow"), mint.toBuffer()],
+      program.programId
+    );
+
+  await program.rpc.makeListing(
+    bump,
+    escrowBump,
+    loanAmount,
+    loanDuration,
+    basisPoints,
+    {
+      accounts: {
+        escrowAccount,
+        listingAccount,
+        mint,
+        borrowerDepositTokenAccount,
+        borrower: wallet.publicKey,
+        tokenProgram: splToken.TOKEN_PROGRAM_ID,
+        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      },
+    }
+  );
+}

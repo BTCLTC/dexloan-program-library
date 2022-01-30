@@ -26,7 +26,7 @@ const Home: NextPage = () => {
       </Head>
 
       <main className={styles.main}>
-        <Link href="/me">Loan</Link>
+        <Link href="/borrow">Borrow</Link>
       </main>
 
       <footer className={styles.footer}>

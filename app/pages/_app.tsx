@@ -26,7 +26,7 @@ function MyApp({ Component, pageProps }: AppProps) {
 
   return (
     <SSRProvider>
-      <SpectrumProvider theme={defaultTheme}>
+      <SpectrumProvider theme={defaultTheme} height="100%">
         <QueryClientProvider client={queryClient}>
           <ConnectionProvider endpoint={endpoint}>
             <WalletProvider wallets={wallets} autoConnect>

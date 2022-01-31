@@ -11,12 +11,9 @@ import {
   Image,
   Flex,
   Form,
-  Footer,
   Link as SpectrumLink,
   NumberField,
-  Text,
   View,
-  Checkbox,
   StatusLight,
 } from "@adobe/react-spectrum";
 import {
@@ -24,8 +21,8 @@ import {
   useWallet,
   useAnchorWallet,
 } from "@solana/wallet-adapter-react";
-import { PhantomWalletName } from "@solana/wallet-adapter-wallets";
 import type { NextPage } from "next";
+import Head from "next/head";
 import { useRouter } from "next/router";
 import { useState } from "react";
 import { useMutation } from "react-query";
@@ -36,9 +33,11 @@ import {
   useMetadataFileQuery,
   NFTResult,
 } from "../hooks/query";
-import { Card } from "../components/card";
+import { Card, CardFlexContainer } from "../components/card";
 import { ProgressCircle } from "../components/progress";
 import { Typography, Heading } from "../components/typography";
+import { Main } from "../components/layout";
+import { ConnectWalletButton } from "../components/button";
 
 const Borrow: NextPage = () => {
   const { connection } = useConnection();
@@ -50,66 +49,54 @@ const Borrow: NextPage = () => {
   if (!wallet.connected) {
     return (
       <Flex direction="row" justifyContent="center">
-        <Button
-          margin="size-600"
-          variant="cta"
-          onPress={async () => {
-            try {
-              wallet.select(PhantomWalletName);
-              await wallet.connect();
-            } catch {}
-          }}
-        >
-          Connect Wallet
-        </Button>
+        <View marginY="size-2000">
+          <ConnectWalletButton />
+        </View>
       </Flex>
     );
   }
 
-  if (queryResult.isLoading) {
-    return <ProgressCircle />;
-  }
-
   return (
     <>
-      <View paddingY="size-600">
-        <Flex direction="column" alignItems="center" margin="0 auto">
-          <View paddingX="size-400" maxWidth="1200px">
-            <Flex direction="row" gap="size-200" wrap="wrap">
-              {queryResult.data?.map((nft) => (
-                <Card
-                  key={nft.accountInfo.pubkey?.toBase58()}
-                  uri={nft.metadata.data?.data?.uri}
-                >
-                  <View paddingX="size-200">
-                    <Typography>
-                      <Heading size="S">
-                        {nft.metadata.data?.data?.name}
-                      </Heading>
-                    </Typography>
-                    <StatusLight
-                      marginStart="calc(0px - size-100)"
-                      variant="positive"
+      <Head>
+        <title>LoanDex: Borrow</title>
+      </Head>
+      {queryResult.isLoading ? (
+        <ProgressCircle />
+      ) : (
+        <Main>
+          <CardFlexContainer>
+            {queryResult.data?.map((nft) => (
+              <Card
+                key={nft.accountInfo.pubkey?.toBase58()}
+                uri={nft.metadata.data?.data?.uri}
+              >
+                <View paddingX="size-200">
+                  <Typography>
+                    <Heading size="S">{nft.metadata.data?.data?.name}</Heading>
+                  </Typography>
+                  <StatusLight
+                    marginStart="calc(0px - size-100)"
+                    variant="positive"
+                  >
+                    Verified Collection
+                  </StatusLight>
+                  <Divider size="S" marginTop="size-600" />
+                  <Flex direction="row" justifyContent="right">
+                    <Button
+                      marginY="size-200"
+                      variant="primary"
+                      onPress={() => setDialog(nft)}
                     >
-                      Verified Collection
-                    </StatusLight>
-                    <Divider size="S" marginTop="size-600" />
-                    <Flex direction="row" justifyContent="right">
-                      <Button
-                        marginY="size-200"
-                        variant="primary"
-                        onPress={() => setDialog(nft)}
-                      >
-                        Borrow
-                      </Button>
-                    </Flex>
-                  </View>
-                </Card>
-              ))}
-            </Flex>
-          </View>
-        </Flex>
-      </View>
+                      Borrow
+                    </Button>
+                  </Flex>
+                </View>
+              </Card>
+            ))}
+          </CardFlexContainer>
+        </Main>
+      )}
       <BorrowDialog nft={selected} setDialog={setDialog} />
     </>
   );

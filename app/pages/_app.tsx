@@ -12,7 +12,8 @@ import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
 import { AppProps } from "next/app";
 import { useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
-import "../styles/globals.css";
+import { Nav } from "../components/nav";
+import "./globals.css";
 
 function MyApp({ Component, pageProps }: AppProps) {
   // You can also provide a custom RPC endpoint
@@ -29,7 +30,8 @@ function MyApp({ Component, pageProps }: AppProps) {
       <SpectrumProvider theme={defaultTheme} minHeight="100vh">
         <QueryClientProvider client={queryClient}>
           <ConnectionProvider endpoint={endpoint}>
-            <WalletProvider wallets={wallets} autoConnect>
+            <WalletProvider wallets={wallets}>
+              <Nav />
               <Component {...pageProps} />
             </WalletProvider>
           </ConnectionProvider>

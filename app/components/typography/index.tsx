@@ -13,7 +13,10 @@ export const Heading: React.FC<TypographyProps> = ({
   size = "M",
   ...props
 }) => (
-  <h1 className={`spectrum-Heading spectrum-Heading--size${size}`} {...props} />
+  <div
+    className={`spectrum-Heading spectrum-Heading--size${size}`}
+    {...props}
+  />
 );
 
 export const Body: React.FC<TypographyProps> = ({ size = "M", ...props }) => (
@@ -21,5 +24,5 @@ export const Body: React.FC<TypographyProps> = ({ size = "M", ...props }) => (
 );
 
 export const Detail: React.FC<TypographyProps> = ({ size = "M", ...props }) => (
-  <p className={`spectrum-Detail spectrum-Detail--size${size}`} {...props} />
+  <span className={`spectrum-Detail spectrum-Detail--size${size}`} {...props} />
 );

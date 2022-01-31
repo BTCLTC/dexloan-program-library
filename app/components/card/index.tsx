@@ -1,4 +1,4 @@
-import { Image, View } from "@adobe/react-spectrum";
+import { Flex, Image, View } from "@adobe/react-spectrum";
 import React from "react";
 import { useMetadataFileQuery } from "../../hooks/query";
 
@@ -28,5 +28,13 @@ export const Card: React.FC<CardProps> = ({ elementType, children, uri }) => {
       />
       <View paddingX="size-100">{children}</View>
     </View>
+  );
+};
+
+export const CardFlexContainer: React.FC = ({ children }) => {
+  return (
+    <Flex direction="row" gap="size-200" wrap="wrap" justifyContent="start">
+      {children}
+    </Flex>
   );
 };

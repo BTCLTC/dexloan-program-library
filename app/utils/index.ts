@@ -1,4 +1,5 @@
 import * as anchor from "@project-serum/anchor";
+import dayjs from "dayjs";
 
 const SECONDS_PER_YEAR = 31_536_000;
 
@@ -8,6 +9,11 @@ export function toMonths(seconds: number) {
 
 export function hasExpired(startDate: number, duration: number) {
   return Date.now() / 1000 > startDate + duration;
+}
+
+export function getFormattedDueDate(startDate: number, duration: number) {
+  console.log(startDate, duration);
+  return dayjs.unix(startDate + duration).format("MMM D, YYYY");
 }
 
 export function yieldGenerated(

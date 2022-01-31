@@ -18,7 +18,6 @@ export function useNFTByOwnerQuery(
     {
       enabled: Boolean(pubkey),
       refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
     }
   );
 }
@@ -38,24 +37,63 @@ export function useMetadataFileQuery(uri?: string) {
     {
       enabled: Boolean(uri),
       refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
     }
   );
 }
 
 export function useListingsQuery(connection: anchor.web3.Connection) {
-  return useQuery(["listings"], () =>
-    api.getListings(connection, [
-      {
-        memcmp: {
-          // filter listed
-          offset: 7 + 1,
-          bytes: bs58.encode(
-            new anchor.BN(api.ListingState.Listed).toArrayLike(Buffer)
-          ),
+  return useQuery(
+    ["listings"],
+    () =>
+      api.getListings(connection, [
+        {
+          memcmp: {
+            // filter listed
+            offset: 7 + 1,
+            bytes: bs58.encode(
+              new anchor.BN(api.ListingState.Listed).toArrayLike(Buffer)
+            ),
+          },
         },
-      },
-    ])
+      ]),
+    {
+      refetchOnWindowFocus: false,
+    }
+  );
+}
+
+export function useListingsByOwnerQuery(
+  connection: anchor.web3.Connection,
+  wallet?: AnchorWallet
+) {
+  return useQuery(
+    ["listings"],
+    () => {
+      if (wallet) {
+        return api.getListings(connection, [
+          {
+            memcmp: {
+              // filter listed
+              offset: 7 + 1,
+              bytes: bs58.encode(
+                new anchor.BN(api.ListingState.Listed).toArrayLike(Buffer)
+              ),
+            },
+          },
+          {
+            memcmp: {
+              // filter listed
+              offset: 7 + 1 + 8 + 1,
+              bytes: wallet?.publicKey.toBase58(),
+            },
+          },
+        ]);
+      }
+    },
+    {
+      enabled: Boolean(wallet),
+      refetchOnWindowFocus: false,
+    }
   );
 }
 
@@ -80,6 +118,7 @@ export function useLoansQuery(
     },
     {
       enabled: Boolean(wallet?.publicKey),
+      refetchOnWindowFocus: false,
     }
   );
 }
@@ -114,6 +153,7 @@ export function useBorrowingsQuery(
     },
     {
       enabled: Boolean(wallet?.publicKey),
+      refetchOnWindowFocus: false,
     }
   );
 }

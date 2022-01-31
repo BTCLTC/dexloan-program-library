@@ -3,7 +3,6 @@ import * as splToken from "@solana/spl-token";
 import { TokenAccount } from "@metaplex-foundation/mpl-core";
 import { Metadata } from "@metaplex-foundation/mpl-token-metadata";
 import { AnchorWallet } from "@solana/wallet-adapter-react";
-import bs58 from "bs58";
 import idl from "../target/idl/dexloan.json";
 import type { Dexloan } from "../target/types/dexloan";
 
@@ -250,4 +249,39 @@ export async function createLoan(
   });
 
   return loanAccount;
+}
+
+export async function cancelListing(
+  connection: anchor.web3.Connection,
+  wallet: AnchorWallet,
+  mint: anchor.web3.PublicKey,
+  listingAccount: anchor.web3.PublicKey,
+  escrowAccount: anchor.web3.PublicKey
+): Promise<void> {
+  const provider = getProvider(connection, wallet as typeof anchor.Wallet);
+  const program = getProgram(provider);
+
+  const [borrowerDepositTokenAccount] =
+    await anchor.web3.PublicKey.findProgramAddress(
+      [
+        wallet.publicKey.toBuffer(),
+        splToken.TOKEN_PROGRAM_ID.toBuffer(),
+        mint.toBuffer(),
+      ],
+      splToken.ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+
+  console.log(borrowerDepositTokenAccount.toBase58());
+
+  await program.rpc.cancelListing({
+    accounts: {
+      escrowAccount,
+      listingAccount,
+      mint,
+      borrowerDepositTokenAccount,
+      borrower: wallet.publicKey,
+      systemProgram: anchor.web3.SystemProgram.programId,
+      tokenProgram: splToken.TOKEN_PROGRAM_ID,
+    },
+  });
 }

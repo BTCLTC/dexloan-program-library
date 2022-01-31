@@ -117,14 +117,15 @@ const Manage: NextPage = () => {
               {listingsQueryResult.data?.map(
                 (item) =>
                   item && (
-                    <BorrowCard
-                      key={item?.listing.publicKey?.toBase58()}
+                    <ListedCard
+                      key={item.listing.publicKey?.toBase58()}
                       amount={item.listing.account.amount.toNumber()}
                       basisPoints={item.listing.account.basisPoints}
                       duration={item.listing.account.duration.toNumber()}
+                      escrow={item.listing.account.escrow}
+                      listing={item.listing.publicKey}
                       name={item.metadata.data?.data?.name}
-                      mint={item.listing.account.mint.toBase58()}
-                      startDate={Date.now() / 1000} // TODO get start date
+                      mint={item.listing.account.mint}
                       uri={item.metadata.data?.data?.uri}
                     />
                   )
@@ -238,6 +239,77 @@ const BorrowCard: React.FC<LoanCardProps> = ({
       <Flex direction="row" justifyContent="right">
         <Button marginY="size-200" variant="primary" onPress={() => {}}>
           Repay
+        </Button>
+      </Flex>
+    </Card>
+  );
+};
+
+interface ListingCardProps {
+  amount: number;
+  basisPoints: number;
+  duration: number;
+  name: string;
+  escrow: anchor.web3.PublicKey;
+  listing: anchor.web3.PublicKey;
+  mint: anchor.web3.PublicKey;
+  uri: string;
+}
+
+const ListedCard: React.FC<ListingCardProps> = ({
+  amount,
+  basisPoints,
+  duration,
+  escrow,
+  listing,
+  mint,
+  name,
+  uri,
+}) => {
+  const { connection } = useConnection();
+  const anchorWallet = useAnchorWallet();
+
+  const mutation = useMutation(() => {
+    if (anchorWallet) {
+      return api.cancelListing(connection, anchorWallet, mint, listing, escrow);
+    }
+    throw new Error("Not ready");
+  });
+
+  return (
+    <Card uri={uri}>
+      <Typography>
+        <Heading size="S">{name}</Heading>
+        <Body size="S">
+          Borrowing&nbsp;
+          <strong>
+            {amount / anchor.web3.LAMPORTS_PER_SOL}
+            &nbsp;SOL
+          </strong>
+          &nbsp;for&nbsp;
+          {utils.toMonths(duration)}
+          &nbsp;months&nbsp;@&nbsp;
+          <strong>{basisPoints / 100}%</strong>
+          &nbsp;APY.&nbsp;
+          <SpectrumLink>
+            <a
+              href={`https://explorer.solana.com/address/${mint}?cluster=devnet`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              View in Explorer
+            </a>
+          </SpectrumLink>
+        </Body>
+      </Typography>
+      <Divider size="S" marginTop="size-600" />
+      <Flex direction="row" justifyContent="right">
+        <Button
+          marginY="size-200"
+          variant="primary"
+          onPress={() => mutation.mutate()}
+        >
+          Cancel
         </Button>
       </Flex>
     </Card>

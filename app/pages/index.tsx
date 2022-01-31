@@ -13,15 +13,12 @@ import {
   View,
   Link as SpectrumLink,
 } from "@adobe/react-spectrum";
-import {
-  useConnection,
-  useWallet,
-  useAnchorWallet,
-} from "@solana/wallet-adapter-react";
+import { useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import type { NextPage } from "next";
 import { useRouter } from "next/router";
 import { useState } from "react";
 import { useMutation } from "react-query";
+import * as utils from "../utils";
 import * as api from "../lib/api";
 import { useListingsQuery } from "../hooks/query";
 import { useWalletConnect } from "../components/button";
@@ -103,11 +100,9 @@ const Listings: NextPage = () => {
                           anchor.web3.LAMPORTS_PER_SOL}
                         &nbsp;SOL for upto&nbsp;
                         <strong>
-                          {item.listing.account.duration.toNumber() /
-                            60 /
-                            60 /
-                            24 /
-                            30}
+                          {utils.toMonths(
+                            item.listing.account.duration.toNumber()
+                          )}
                           &nbsp;months @&nbsp;
                         </strong>
                         <strong>

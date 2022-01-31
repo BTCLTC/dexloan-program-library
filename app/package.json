@@ -22,6 +22,7 @@
     "@spectrum-css/typography": "^4.0.10",
     "@spectrum-css/vars": "^6.1.0",
     "bs58": "^4.0.1",
+    "dayjs": "^1.10.7",
     "next": "12.0.9",
     "next-transpile-modules": "^9.0.0",
     "react": "17.0.2",

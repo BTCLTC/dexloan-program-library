@@ -22,7 +22,6 @@ import {
   useAnchorWallet,
 } from "@solana/wallet-adapter-react";
 import type { NextPage } from "next";
-import Head from "next/head";
 import { useRouter } from "next/router";
 import { useState } from "react";
 import { useMutation } from "react-query";
@@ -58,9 +57,6 @@ const Borrow: NextPage = () => {
 
   return (
     <>
-      <Head>
-        <title>LoanDex: Borrow</title>
-      </Head>
       {queryResult.isLoading ? (
         <ProgressCircle />
       ) : (
@@ -88,7 +84,7 @@ const Borrow: NextPage = () => {
                       variant="primary"
                       onPress={() => setDialog(nft)}
                     >
-                      Borrow
+                      List
                     </Button>
                   </Flex>
                 </View>

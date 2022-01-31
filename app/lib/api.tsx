@@ -110,10 +110,15 @@ export async function getLoans(
   return combinedAccounts;
 }
 
+export interface NFTResult {
+  accountInfo: TokenAccount;
+  metadata: Metadata;
+}
+
 export async function getNFTs(
   connection: anchor.web3.Connection,
   pubkey: anchor.web3.PublicKey
-): Promise<{ accountInfo: TokenAccount; metadata: Metadata }[]> {
+): Promise<NFTResult[]> {
   const rawTokenAccounts = await connection.getTokenAccountsByOwner(pubkey, {
     programId: splToken.TOKEN_PROGRAM_ID,
   });

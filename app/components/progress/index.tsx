@@ -4,7 +4,13 @@ import {
 } from "@adobe/react-spectrum";
 
 export const ProgressCircle: React.FC = () => (
-  <Flex alignItems="center" justifyContent="center" height="100%" width="100%">
+  <Flex
+    direction="row"
+    alignItems="center"
+    justifyContent="center"
+    width="100%"
+    height="size-4600"
+  >
     <SpectrumProgressCircle aria-label="Loading…" isIndeterminate />
   </Flex>
 );

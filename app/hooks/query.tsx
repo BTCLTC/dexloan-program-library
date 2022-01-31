@@ -23,6 +23,8 @@ export function useNFTByOwnerQuery(
   );
 }
 
+export type NFTResult = api.NFTResult;
+
 export function useMetadataFileQuery(uri?: string) {
   return useQuery(
     ["metadataFile", uri],

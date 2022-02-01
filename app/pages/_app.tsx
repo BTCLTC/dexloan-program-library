@@ -11,6 +11,7 @@ import {
 } from "@solana/wallet-adapter-react";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
 import { AppProps } from "next/app";
+import Head from "next/head";
 import { useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { ToastContainer } from "react-toastify";
@@ -34,6 +35,13 @@ function MyApp({ Component, pageProps }: AppProps) {
         <QueryClientProvider client={queryClient}>
           <ConnectionProvider endpoint={endpoint}>
             <WalletProvider wallets={wallets}>
+              <Head>
+                <title>dexloan</title>
+                <meta
+                  name="viewport"
+                  content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=0,viewport-fit=cover"
+                />
+              </Head>
               <Nav />
               <Component {...pageProps} />
               <ToastContainer closeButton={CloseIcon} />

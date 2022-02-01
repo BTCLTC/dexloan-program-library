@@ -12,6 +12,7 @@ import {
   Text,
   View,
   Link as SpectrumLink,
+  ProgressCircle,
 } from "@adobe/react-spectrum";
 import { useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import type { NextPage } from "next";
@@ -23,7 +24,7 @@ import * as api from "../lib/api";
 import { useListingsQuery } from "../hooks/query";
 import { useWalletConnect } from "../components/button";
 import { Card, CardFlexContainer } from "../components/card";
-import { ProgressCircle } from "../components/progress";
+import { LoadingPlaceholder } from "../components/progress";
 import { Body, Heading, Typography } from "../components/typography";
 import { Main } from "../components/layout";
 
@@ -79,7 +80,7 @@ const Listings: NextPage = () => {
   return (
     <>
       {queryResult.isLoading ? (
-        <ProgressCircle />
+        <LoadingPlaceholder />
       ) : (
         <Main>
           <CardFlexContainer>
@@ -139,56 +140,54 @@ const Listings: NextPage = () => {
       <DialogContainer onDismiss={() => setDialog(null)}>
         {selectedListing && (
           <Dialog>
-            {mutation.isLoading ? (
-              <Content>
-                <View height="size-400" width="100%">
-                  <ProgressCircle />
+            <DialogHeading>Loan</DialogHeading>
+            <Header>
+              Lending&nbsp;
+              <strong>
+                {selectedListing.account.amount.toNumber() /
+                  anchor.web3.LAMPORTS_PER_SOL}{" "}
+                SOL
+              </strong>
+              &nbsp;@&nbsp;
+              <strong>{selectedListing.account.basisPoints / 100}% APY</strong>
+            </Header>
+            <Content>
+              {mutation.isLoading ? (
+                <Flex direction="row" justifyContent="center" width="100%">
+                  <ProgressCircle
+                    isIndeterminate
+                    aria-label="Loading…"
+                    marginY="size-200"
+                  />
+                </Flex>
+              ) : (
+                <View>
+                  <Text>
+                    This loan may be repaid in full at any time. Interest will
+                    be calulated on a pro-rata basis. If the borrower fails to
+                    repay the loan, you may exercise the right to repossess the
+                    NFT.
+                  </Text>
                 </View>
-              </Content>
-            ) : (
-              <>
-                <DialogHeading>Loan</DialogHeading>
-                <Header>
-                  Lending&nbsp;
-                  <strong>
-                    {selectedListing.account.amount.toNumber() /
-                      anchor.web3.LAMPORTS_PER_SOL}{" "}
-                    SOL
-                  </strong>
-                  &nbsp;@&nbsp;
-                  <strong>
-                    {selectedListing.account.basisPoints / 100}% APY
-                  </strong>
-                </Header>
-                <Content>
-                  <View>
-                    <Text>
-                      This loan may be repaid in full at any time. Interest will
-                      be calulated on a pro-rata basis. If the borrower fails to
-                      repay the loan, you may exercise the right to repossess
-                      the NFT.
-                    </Text>
-                  </View>
-                </Content>
-                <Divider />
-                <ButtonGroup>
-                  <Button
-                    isDisabled={mutation.isLoading}
-                    variant="secondary"
-                    onPress={() => setDialog(null)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    isDisabled={mutation.isLoading}
-                    variant="cta"
-                    onPress={() => mutation.mutate()}
-                  >
-                    Confirm
-                  </Button>
-                </ButtonGroup>
-              </>
-            )}
+              )}
+            </Content>
+            <Divider />
+            <ButtonGroup>
+              <Button
+                isDisabled={mutation.isLoading}
+                variant="secondary"
+                onPress={() => setDialog(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                isDisabled={mutation.isLoading}
+                variant="cta"
+                onPress={() => mutation.mutate()}
+              >
+                Confirm
+              </Button>
+            </ButtonGroup>
           </Dialog>
         )}
       </DialogContainer>

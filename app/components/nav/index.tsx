@@ -28,7 +28,7 @@ export const Nav = () => {
   return (
     <nav className={styles.nav}>
       <div className={styles.navContainer}>
-        <Heading size="L">LoanDex</Heading> {/* LOGO goes here */}
+        <Heading size="L">dexloan</Heading> {/* LOGO goes here */}
         <ul>
           <li>
             <NavItem href="/">Lend</NavItem>

@@ -233,3 +233,44 @@ export async function cancelListing(
     },
   });
 }
+
+export async function repayLoan(
+  connection: anchor.web3.Connection,
+  wallet: AnchorWallet,
+  mint: anchor.web3.PublicKey,
+  lender: anchor.web3.PublicKey,
+  listingAccount: anchor.web3.PublicKey,
+  escrowAccount: anchor.web3.PublicKey
+): Promise<void> {
+  const provider = getProvider(connection, wallet as typeof anchor.Wallet);
+  const program = getProgram(provider);
+
+  const [borrowerDepositTokenAccount] =
+    await anchor.web3.PublicKey.findProgramAddress(
+      [
+        wallet.publicKey.toBuffer(),
+        splToken.TOKEN_PROGRAM_ID.toBuffer(),
+        mint.toBuffer(),
+      ],
+      splToken.ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+
+  console.log(
+    "borrowerDepositTokenAccount: ",
+    borrowerDepositTokenAccount.toBase58()
+  );
+
+  await program.rpc.repayLoan({
+    accounts: {
+      lender,
+      listingAccount,
+      escrowAccount,
+      mint,
+      borrowerDepositTokenAccount,
+      borrower: wallet.publicKey,
+      systemProgram: anchor.web3.SystemProgram.programId,
+      tokenProgram: splToken.TOKEN_PROGRAM_ID,
+      clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
+    },
+  });
+}

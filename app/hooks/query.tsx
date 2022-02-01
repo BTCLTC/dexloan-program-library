@@ -67,7 +67,7 @@ export function useListingsByOwnerQuery(
   wallet?: AnchorWallet
 ) {
   return useQuery(
-    ["listings"],
+    ["listings", wallet?.publicKey.toBase58()],
     () => {
       if (wallet) {
         return api.getListings(connection, [
@@ -102,7 +102,7 @@ export function useLoansQuery(
   wallet?: AnchorWallet
 ) {
   return useQuery(
-    ["loans"],
+    ["loans", wallet?.publicKey.toBase58()],
     () => {
       if (wallet) {
         return api.getListings(connection, [
@@ -137,7 +137,7 @@ export function useBorrowingsQuery(
   wallet?: AnchorWallet
 ) {
   return useQuery(
-    ["borrowings"],
+    ["borrowings", wallet?.publicKey.toBase58()],
     () => {
       if (wallet) {
         return api.getListings(connection, [

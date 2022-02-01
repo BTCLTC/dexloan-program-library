@@ -3,6 +3,7 @@ import {
   SSRProvider,
   Provider as SpectrumProvider,
 } from "@adobe/react-spectrum";
+import CloseIcon from "@spectrum-icons/workflow/Close";
 import * as anchor from "@project-serum/anchor";
 import {
   ConnectionProvider,
@@ -12,7 +13,9 @@ import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
 import { AppProps } from "next/app";
 import { useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
+import { ToastContainer } from "react-toastify";
 import { Nav } from "../components/nav";
+import "react-toastify/dist/ReactToastify.css";
 import "./globals.css";
 
 function MyApp({ Component, pageProps }: AppProps) {
@@ -33,6 +36,7 @@ function MyApp({ Component, pageProps }: AppProps) {
             <WalletProvider wallets={wallets}>
               <Nav />
               <Component {...pageProps} />
+              <ToastContainer closeButton={CloseIcon} />
             </WalletProvider>
           </ConnectionProvider>
         </QueryClientProvider>

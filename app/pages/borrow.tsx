@@ -7,14 +7,13 @@ import {
   DialogContainer,
   Divider,
   Heading as DialogHeading,
-  Header,
   Image,
   Flex,
   Form,
-  Link as SpectrumLink,
   NumberField,
   View,
   StatusLight,
+  ProgressCircle,
 } from "@adobe/react-spectrum";
 import {
   useConnection,
@@ -22,10 +21,10 @@ import {
   useAnchorWallet,
 } from "@solana/wallet-adapter-react";
 import type { NextPage } from "next";
-import { useRouter } from "next/router";
 import { useState } from "react";
-import { useMutation } from "react-query";
+import { useMutation, useQueryClient } from "react-query";
 import { Controller, useForm } from "react-hook-form";
+import { toast } from "react-toastify";
 import * as api from "../lib/api";
 import {
   useNFTByOwnerQuery,
@@ -33,7 +32,7 @@ import {
   NFTResult,
 } from "../hooks/query";
 import { Card, CardFlexContainer } from "../components/card";
-import { ProgressCircle } from "../components/progress";
+import { LoadingPlaceholder } from "../components/progress";
 import { Typography, Heading } from "../components/typography";
 import { Main } from "../components/layout";
 import { ConnectWalletButton } from "../components/button";
@@ -58,7 +57,7 @@ const Borrow: NextPage = () => {
   return (
     <>
       {queryResult.isLoading ? (
-        <ProgressCircle />
+        <LoadingPlaceholder />
       ) : (
         <Main>
           <CardFlexContainer>
@@ -105,14 +104,14 @@ interface FormFields {
 }
 
 interface BorrowDialogProps {
-  nft?: any;
+  nft: NFTResult | null;
   setDialog: (nft: NFTResult | null) => void;
 }
 
 const BorrowDialog: React.FC<BorrowDialogProps> = ({ nft, setDialog }) => {
-  const router = useRouter();
   const { connection } = useConnection();
   const anchorWallet = useAnchorWallet();
+  const queryClient = useQueryClient();
 
   const form = useForm<FormFields>();
 
@@ -144,9 +143,27 @@ const BorrowDialog: React.FC<BorrowDialogProps> = ({ nft, setDialog }) => {
     {
       onError(err) {
         console.error("Error: " + err);
+        if (err instanceof Error) {
+          toast.error("Error: " + err.message);
+        }
       },
       onSuccess() {
-        router.push("/borrow");
+        toast.success("Listing created");
+
+        queryClient.setQueryData<NFTResult[]>(
+          ["wallet-nfts", anchorWallet?.publicKey.toBase58()],
+          (data) => {
+            if (!data) {
+              return [];
+            }
+            return data.filter(
+              (item: NFTResult) =>
+                item?.accountInfo.pubkey !== nft?.accountInfo.pubkey
+            );
+          }
+        );
+
+        setDialog(null);
       },
     }
   );
@@ -162,67 +179,81 @@ const BorrowDialog: React.FC<BorrowDialogProps> = ({ nft, setDialog }) => {
             objectFit="cover"
           />
           <DialogHeading>Create Listing</DialogHeading>
-          <Header>
-            <SpectrumLink>
-              <a href="/todo">What&apos;s this?</a>
-            </SpectrumLink>
-          </Header>
           <Divider />
           <Content>
-            <Form
-              validationState="invalid"
-              onSubmit={form.handleSubmit((data) => mutation.mutate(data))}
-            >
-              <Controller
-                control={form.control}
-                name="amountSOL"
-                rules={{ required: true }}
-                render={({ field: { onChange }, fieldState: { invalid } }) => (
-                  <NumberField
-                    label="Amount"
-                    minValue={0.1}
-                    formatOptions={{
-                      currency: "SOL",
-                    }}
-                    validationState={invalid ? "invalid" : undefined}
-                    onChange={onChange}
-                  />
-                )}
-              />
-              <Controller
-                control={form.control}
-                name="returnAPY"
-                rules={{ required: true }}
-                render={({ field: { onChange }, fieldState: { invalid } }) => (
-                  <NumberField
-                    label="APY"
-                    formatOptions={{
-                      maximumFractionDigits: 1,
-                      style: "percent",
-                    }}
-                    minValue={0.01}
-                    maxValue={6.5}
-                    validationState={invalid ? "invalid" : undefined}
-                    onChange={onChange}
-                  />
-                )}
-              />
-              <Controller
-                control={form.control}
-                name="durationMonths"
-                rules={{ required: true }}
-                render={({ field: { onChange }, fieldState: { invalid } }) => (
-                  <NumberField
-                    label="Duration (months)"
-                    minValue={1}
-                    maxValue={24}
-                    step={1}
-                    validationState={invalid ? "invalid" : undefined}
-                    onChange={onChange}
-                  />
-                )}
-              />
-            </Form>
+            {mutation.isLoading ? (
+              <Flex direction="row" justifyContent="center" width="100%">
+                <ProgressCircle
+                  isIndeterminate
+                  aria-label="Loading…"
+                  marginY="size-200"
+                />
+              </Flex>
+            ) : (
+              <Form
+                validationState="invalid"
+                onSubmit={form.handleSubmit((data) => mutation.mutate(data))}
+              >
+                <Controller
+                  control={form.control}
+                  name="amountSOL"
+                  rules={{ required: true }}
+                  render={({
+                    field: { onChange },
+                    fieldState: { invalid },
+                  }) => (
+                    <NumberField
+                      label="Amount"
+                      minValue={0.1}
+                      formatOptions={{
+                        currency: "SOL",
+                      }}
+                      validationState={invalid ? "invalid" : undefined}
+                      onChange={onChange}
+                    />
+                  )}
+                />
+                <Controller
+                  control={form.control}
+                  name="returnAPY"
+                  rules={{ required: true }}
+                  render={({
+                    field: { onChange },
+                    fieldState: { invalid },
+                  }) => (
+                    <NumberField
+                      label="APY"
+                      formatOptions={{
+                        maximumFractionDigits: 1,
+                        style: "percent",
+                      }}
+                      minValue={0.01}
+                      maxValue={6.5}
+                      validationState={invalid ? "invalid" : undefined}
+                      onChange={onChange}
+                    />
+                  )}
+                />
+                <Controller
+                  control={form.control}
+                  name="durationMonths"
+                  rules={{ required: true }}
+                  render={({
+                    field: { onChange },
+                    fieldState: { invalid },
+                  }) => (
+                    <NumberField
+                      label="Duration (months)"
+                      minValue={1}
+                      maxValue={24}
+                      step={1}
+                      validationState={invalid ? "invalid" : undefined}
+                      onChange={onChange}
+                    />
+                  )}
+                />
+              </Form>
+            )}
           </Content>
           <ButtonGroup>
             <Button

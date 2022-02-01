@@ -9,7 +9,8 @@ import {
 } from "@adobe/react-spectrum";
 import { useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import type { NextPage } from "next";
-import { useMutation } from "react-query";
+import { useMutation, useQueryClient } from "react-query";
+import { toast } from "react-toastify";
 import * as utils from "../utils";
 import * as api from "../lib/api";
 import {
@@ -19,7 +20,7 @@ import {
 } from "../hooks/query";
 import { ConnectWalletButton } from "../components/button";
 import { Card, CardFlexContainer } from "../components/card";
-import { ProgressCircle } from "../components/progress";
+import { LoadingPlaceholder } from "../components/progress";
 import { Typography, Body, Heading } from "../components/typography";
 import { Main } from "../components/layout";
 
@@ -30,7 +31,7 @@ const Manage: NextPage = () => {
   const loansQueryResult = useLoansQuery(connection, anchorWallet);
   const borrowingsQueryResult = useBorrowingsQuery(connection, anchorWallet);
   const listingsQueryResult = useListingsByOwnerQuery(connection, anchorWallet);
-  console.log("loansQueryResult: ", loansQueryResult);
+
   if (!anchorWallet) {
     return (
       <Flex direction="row" justifyContent="center">
@@ -46,7 +47,7 @@ const Manage: NextPage = () => {
     borrowingsQueryResult.isLoading ||
     listingsQueryResult.isLoading
   ) {
-    return <ProgressCircle />;
+    return <LoadingPlaceholder />;
   }
 
   return (
@@ -92,17 +93,18 @@ const Manage: NextPage = () => {
               {borrowingsQueryResult.data?.map(
                 (item) =>
                   item && (
-                    <BorrowCard
-                      key={item?.listing.publicKey?.toBase58()}
+                    <BorrowingCard
+                      key={item.listing.publicKey.toBase58()}
                       amount={item.listing.account.amount.toNumber()}
                       basisPoints={item.listing.account.basisPoints}
                       duration={item.listing.account.duration.toNumber()}
-                      name={item.metadata.data?.data?.name}
+                      name={item.metadata.data.data.name}
                       escrow={item.listing.account.escrow}
+                      lender={item.listing.account.lender}
                       listing={item.listing.publicKey}
                       mint={item.listing.account.mint}
                       startDate={item.listing.account.startDate.toNumber()}
-                      uri={item.metadata.data?.data?.uri}
+                      uri={item.metadata.data.data.uri}
                     />
                   )
               )}
@@ -177,7 +179,7 @@ const LoanCard: React.FC<LoanCardProps> = ({
           {utils.toMonths(duration)}
           &nbsp;months&nbsp;@&nbsp;
           <strong>{basisPoints / 100}%</strong>
-          &nbsp;APY.&nbsp;
+          &nbsp;APR.&nbsp;
           <SpectrumLink>
             <a
               href={`https://explorer.solana.com/address/${mint}?cluster=devnet`}
@@ -197,8 +199,8 @@ const LoanCard: React.FC<LoanCardProps> = ({
           </Button>
         ) : (
           <StatusLight marginY="size-200" marginX="size-50" variant="positive">
-            {utils.yieldGenerated(amount, startDate, basisPoints)} SOL earned -
-            due {utils.getFormattedDueDate(startDate, duration)}
+            {utils.yieldGenerated(amount, startDate, basisPoints).toFixed(4)}{" "}
+            SOL earned - due {utils.getFormattedDueDate(startDate, duration)}
           </StatusLight>
         )}
       </Flex>
@@ -206,15 +208,74 @@ const LoanCard: React.FC<LoanCardProps> = ({
   );
 };
 
-const BorrowCard: React.FC<LoanCardProps> = ({
+interface BorrowingCardProps {
+  amount: number;
+  name: string;
+  escrow: anchor.web3.PublicKey;
+  lender: anchor.web3.PublicKey;
+  listing: anchor.web3.PublicKey;
+  mint: anchor.web3.PublicKey;
+  basisPoints: number;
+  duration: number;
+  startDate: number;
+  uri: string;
+}
+
+const BorrowingCard: React.FC<BorrowingCardProps> = ({
   amount,
   name,
-  mint,
   basisPoints,
   duration,
+  escrow,
+  lender,
+  listing,
+  mint,
   startDate,
   uri,
 }) => {
+  const { connection } = useConnection();
+  const anchorWallet = useAnchorWallet();
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation(
+    () => {
+      if (anchorWallet) {
+        return api.repayLoan(
+          connection,
+          anchorWallet,
+          mint,
+          lender,
+          listing,
+          escrow
+        );
+      }
+      throw new Error("Not ready");
+    },
+    {
+      onError(err) {
+        console.error(err);
+        if (err instanceof Error) {
+          toast.error("Error: " + err.message);
+        }
+      },
+      onSuccess() {
+        toast.success("Loan repaid. Your NFT has been returned to you.");
+
+        queryClient.setQueryData(
+          ["borrowings", anchorWallet?.publicKey.toBase58()],
+          (borrowings: any[] | undefined) => {
+            if (!borrowings) return [];
+
+            return borrowings.filter(
+              (borrowing) =>
+                borrowing.listing.publicKey.toBase58() !== listing.toBase58()
+            );
+          }
+        );
+      },
+    }
+  );
+
   return (
     <Card uri={uri}>
       <Typography>
@@ -229,7 +290,7 @@ const BorrowCard: React.FC<LoanCardProps> = ({
           {utils.toMonths(duration)}
           &nbsp;months&nbsp;@&nbsp;
           <strong>{basisPoints / 100}%</strong>
-          &nbsp;APY.&nbsp;
+          &nbsp;APR.&nbsp;
           <SpectrumLink>
             <a
               href={`https://explorer.solana.com/address/${mint}?cluster=devnet`}
@@ -243,8 +304,12 @@ const BorrowCard: React.FC<LoanCardProps> = ({
       </Typography>
       <Divider size="S" marginTop="size-600" />
       <Flex direction="row" justifyContent="right">
-        <Button marginY="size-200" variant="primary" onPress={() => {}}>
-          Repay
+        <Button
+          marginY="size-200"
+          variant="primary"
+          onPress={() => mutation.mutate()}
+        >
+          Repay {utils.totalAmount(amount, startDate, basisPoints).toFixed(4)}
         </Button>
       </Flex>
     </Card>
@@ -275,12 +340,31 @@ const ListedCard: React.FC<ListingCardProps> = ({
   const { connection } = useConnection();
   const anchorWallet = useAnchorWallet();
 
-  const mutation = useMutation(() => {
-    if (anchorWallet) {
-      return api.cancelListing(connection, anchorWallet, mint, listing, escrow);
+  const mutation = useMutation(
+    () => {
+      if (anchorWallet) {
+        return api.cancelListing(
+          connection,
+          anchorWallet,
+          mint,
+          listing,
+          escrow
+        );
+      }
+      throw new Error("Not ready");
+    },
+    {
+      onError(err) {
+        console.error(err);
+        if (err instanceof Error) {
+          toast.error("Error: " + err.message);
+        }
+      },
+      onSuccess() {
+        toast.success("Listing cancelled");
+      },
     }
-    throw new Error("Not ready");
-  });
+  );
 
   return (
     <Card uri={uri}>
@@ -296,7 +380,7 @@ const ListedCard: React.FC<ListingCardProps> = ({
           {utils.toMonths(duration)}
           &nbsp;months&nbsp;@&nbsp;
           <strong>{basisPoints / 100}%</strong>
-          &nbsp;APY.&nbsp;
+          &nbsp;APR.&nbsp;
           <SpectrumLink>
             <a
               href={`https://explorer.solana.com/address/${mint}?cluster=devnet`}

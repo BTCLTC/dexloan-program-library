@@ -1,9 +1,6 @@
-import {
-  Flex,
-  ProgressCircle as SpectrumProgressCircle,
-} from "@adobe/react-spectrum";
+import { Flex, ProgressCircle } from "@adobe/react-spectrum";
 
-export const ProgressCircle: React.FC = () => (
+export const LoadingPlaceholder: React.FC = () => (
   <Flex
     direction="row"
     alignItems="center"
@@ -11,6 +8,6 @@ export const ProgressCircle: React.FC = () => (
     width="100%"
     height="size-4600"
   >
-    <SpectrumProgressCircle aria-label="Loading…" isIndeterminate />
+    <ProgressCircle aria-label="Loading…" isIndeterminate />
   </Flex>
 );

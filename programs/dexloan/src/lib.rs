@@ -9,7 +9,7 @@ declare_id!("Da2AAtcBWTQ1dQdEQWzqSRpF9tCB6wWVbCAEf2P3iAzb");
 pub mod dexloan {
     use super::*;
 
-    pub const SECONDS_PER_YEAR: u64 = 31_536_000; 
+    pub const SECONDS_PER_YEAR: f64 = 31_536_000.0; 
 
     pub fn make_listing(
         ctx: Context<MakeListing>,
@@ -92,15 +92,18 @@ pub mod dexloan {
 
         let unix_timestamp = ctx.accounts.clock.unix_timestamp;
         let loan_start_date = listing.start_date;
-        let loan_basis_points = listing.basis_points as u64;
-        let loan_duration = (unix_timestamp - loan_start_date) as u64;
-        let pro_rata_interest_rate = ((loan_basis_points / 100) / SECONDS_PER_YEAR) * loan_duration;
-        let interest_due = listing.amount * pro_rata_interest_rate;
-        let amount_due = listing.amount + interest_due;
-
-        println!("Loan amount: {}", listing.amount);
-        println!("Interest due: {}", interest_due);
-        println!("Total amount due: {}", amount_due);
+        let loan_basis_points = listing.basis_points as f64;
+        let loan_duration = (unix_timestamp - loan_start_date) as f64;
+        let pro_rata_interest_rate = ((loan_basis_points / 100 as f64) / SECONDS_PER_YEAR) * loan_duration;
+        let interest_due = listing.amount as f64 * pro_rata_interest_rate;
+        let amount_due = listing.amount + interest_due.round() as u64;
+        
+        msg!("Loan basis points: {}", loan_basis_points);
+        msg!("Loan duration: {} seconds", loan_duration);
+        msg!("Loan amount: {} LAMPORTS", listing.amount);
+        msg!("Pro Rata interest rate: {}%", pro_rata_interest_rate);
+        msg!("Interest due: {} LAMPORTS", interest_due);
+        msg!("Total amount due: {} LAMPORTS", amount_due);
 
         listing.state = ListingState::Repaid as u8;
 
@@ -108,7 +111,7 @@ pub mod dexloan {
             &anchor_lang::solana_program::system_instruction::transfer(
                 &listing.borrower,
                 &listing.lender,
-                amount_due,
+                amount_due as u64,
             ),
             &[
                 ctx.accounts.borrower.to_account_info(),
@@ -244,6 +247,7 @@ pub struct MakeLoan<'info> {
     /// The listing the loan is being issued against
     #[account(
         mut,
+        constraint = listing_account.lender != *borrower.key,
         constraint = listing_account.borrower == *borrower.key,
         constraint = listing_account.mint == mint.key(),
         constraint = listing_account.state == ListingState::Listed as u8,

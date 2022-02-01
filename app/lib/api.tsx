@@ -7,6 +7,7 @@ import idl from "../target/idl/dexloan.json";
 import type { Dexloan } from "../target/types/dexloan";
 
 export function getProgram(provider: anchor.Provider): anchor.Program<Dexloan> {
+  // @ts-ignore
   const programID = new anchor.web3.PublicKey(idl.metadata.address);
   return new anchor.Program(idl as any, programID, provider);
 }
@@ -55,48 +56,6 @@ export async function getListings(
 
         return {
           metadata,
-          listing: listings[index],
-        };
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  });
-
-  return combinedAccounts;
-}
-
-export async function getLoans(
-  connection: anchor.web3.Connection,
-  filter: anchor.web3.GetProgramAccountsFilter[] = []
-) {
-  const program = getProgram(getProvider(connection, anchor.Wallet));
-  const loans = await program.account.loan.all(filter);
-
-  const listings: any[] = await program.account.listing.fetchMultiple(
-    loans.map((loan) => loan.account.listing)
-  );
-
-  const metadataAddresses = await Promise.all(
-    listings.map((listing) => Metadata.getPDA(listing.mint))
-  );
-
-  const rawMetadataAccounts = await connection.getMultipleAccountsInfo(
-    metadataAddresses
-  );
-
-  const combinedAccounts = rawMetadataAccounts.map((account, index) => {
-    if (account) {
-      try {
-        const metadata = new Metadata(
-          metadataAddresses[index],
-          account as anchor.web3.AccountInfo<Buffer>
-        );
-
-        return {
-          metadata,
-          loan: loans[index],
           listing: listings[index],
         };
       } catch {
@@ -225,20 +184,13 @@ export async function createLoan(
   mint: anchor.web3.PublicKey,
   borrower: anchor.web3.PublicKey,
   listing: anchor.web3.PublicKey
-): Promise<anchor.web3.PublicKey> {
+): Promise<void> {
   const provider = getProvider(connection, wallet as typeof anchor.Wallet);
   const program = getProgram(provider);
 
-  const [loanAccount, loanBump] =
-    await anchor.web3.PublicKey.findProgramAddress(
-      [Buffer.from("loan"), listing.toBuffer()],
-      program.programId
-    );
-
-  await program.rpc.makeLoan(loanBump, {
+  await program.rpc.makeLoan({
     accounts: {
       borrower,
-      loanAccount,
       mint,
       listingAccount: listing,
       lender: wallet.publicKey,
@@ -247,8 +199,6 @@ export async function createLoan(
       clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
     },
   });
-
-  return loanAccount;
 }
 
 export async function cancelListing(
@@ -270,8 +220,6 @@ export async function cancelListing(
       ],
       splToken.ASSOCIATED_TOKEN_PROGRAM_ID
     );
-
-  console.log(borrowerDepositTokenAccount.toBase58());
 
   await program.rpc.cancelListing({
     accounts: {

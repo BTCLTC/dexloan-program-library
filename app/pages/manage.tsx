@@ -30,7 +30,7 @@ const Manage: NextPage = () => {
   const loansQueryResult = useLoansQuery(connection, anchorWallet);
   const borrowingsQueryResult = useBorrowingsQuery(connection, anchorWallet);
   const listingsQueryResult = useListingsByOwnerQuery(connection, anchorWallet);
-
+  console.log("loansQueryResult: ", loansQueryResult);
   if (!anchorWallet) {
     return (
       <Flex direction="row" justifyContent="center">
@@ -52,7 +52,7 @@ const Manage: NextPage = () => {
   return (
     <>
       <Main>
-        {loansQueryResult.data?.length && (
+        {loansQueryResult.data?.length ? (
           <>
             <View marginBottom="size-200" marginTop="size-600">
               <Typography>
@@ -64,21 +64,23 @@ const Manage: NextPage = () => {
                 (item) =>
                   item && (
                     <LoanCard
-                      key={item?.loan.publicKey?.toBase58()}
-                      amount={item.listing.amount.toNumber()}
-                      basisPoints={item.listing.basisPoints}
-                      duration={item.listing.duration.toNumber()}
+                      key={item.listing.publicKey?.toBase58()}
+                      amount={item.listing.account.amount.toNumber()}
+                      basisPoints={item.listing.account.basisPoints}
+                      duration={item.listing.account.duration.toNumber()}
                       name={item.metadata.data?.data?.name}
-                      mint={item.listing.mint}
-                      startDate={item.loan.account.startDate.toNumber()}
+                      escrow={item.listing.account.escrow}
+                      listing={item.listing.publicKey}
+                      mint={item.listing.account.mint}
+                      startDate={item.listing.account.startDate.toNumber()}
                       uri={item.metadata.data?.data?.uri}
                     />
                   )
               )}
             </CardFlexContainer>
           </>
-        )}
-        {borrowingsQueryResult.data?.length && (
+        ) : null}
+        {borrowingsQueryResult.data?.length ? (
           <>
             <View marginBottom="size-200" marginTop="size-600">
               <Divider size="M" />
@@ -96,16 +98,18 @@ const Manage: NextPage = () => {
                       basisPoints={item.listing.account.basisPoints}
                       duration={item.listing.account.duration.toNumber()}
                       name={item.metadata.data?.data?.name}
-                      mint={item.listing.account.mint.toBase58()}
-                      startDate={Date.now() / 1000} // TODO get start date
+                      escrow={item.listing.account.escrow}
+                      listing={item.listing.publicKey}
+                      mint={item.listing.account.mint}
+                      startDate={item.listing.account.startDate.toNumber()}
                       uri={item.metadata.data?.data?.uri}
                     />
                   )
               )}
             </CardFlexContainer>
           </>
-        )}
-        {listingsQueryResult.data?.length && (
+        ) : null}
+        {listingsQueryResult.data?.length ? (
           <>
             <View marginBottom="size-200" marginTop="size-600">
               <Divider size="M" />
@@ -132,7 +136,7 @@ const Manage: NextPage = () => {
               )}
             </CardFlexContainer>
           </>
-        )}
+        ) : null}
       </Main>
     </>
   );
@@ -141,7 +145,9 @@ const Manage: NextPage = () => {
 interface LoanCardProps {
   amount: number;
   name: string;
-  mint: string;
+  escrow: anchor.web3.PublicKey;
+  listing: anchor.web3.PublicKey;
+  mint: anchor.web3.PublicKey;
   basisPoints: number;
   duration: number;
   startDate: number;

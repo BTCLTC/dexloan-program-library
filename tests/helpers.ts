@@ -133,15 +133,8 @@ export async function createLoan(connection: anchor.web3.Connection, borrower) {
   const program = getProgram(provider);
   await requestAirdrop(connection, keypair.publicKey);
 
-  const [loanAccount, loanBump] =
-    await anchor.web3.PublicKey.findProgramAddress(
-      [Buffer.from("loan"), borrower.listingAccount.toBuffer()],
-      program.programId
-    );
-
-  await program.rpc.makeLoan(loanBump, {
+  await program.rpc.makeLoan({
     accounts: {
-      loanAccount,
       listingAccount: borrower.listingAccount,
       borrower: borrower.keypair.publicKey,
       lender: keypair.publicKey,
@@ -156,6 +149,5 @@ export async function createLoan(connection: anchor.web3.Connection, borrower) {
     keypair,
     provider,
     program,
-    loanAccount,
   };
 }

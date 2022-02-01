@@ -3,7 +3,7 @@ use anchor_spl::{
     token::{Mint, Token, TokenAccount},
 };
 
-declare_id!("AqLBJQk2vRmJvX3hT43RQrWBfy66oXLsHYd136JHh45R");
+declare_id!("Da2AAtcBWTQ1dQdEQWzqSRpF9tCB6wWVbCAEf2P3iAzb");
 
 #[program]
 pub mod dexloan {
@@ -22,7 +22,7 @@ pub mod dexloan {
         let listing = &mut ctx.accounts.listing_account;
 
         listing.amount = amount;
-        listing.authority = ctx.accounts.borrower.key();
+        listing.borrower = ctx.accounts.borrower.key();
         listing.basis_points = basis_points;
         listing.duration = duration;
         listing.escrow = ctx.accounts.escrow_account.key();
@@ -65,20 +65,17 @@ pub mod dexloan {
         Ok(())
     }
 
-    pub fn make_loan(ctx: Context<MakeLoan>, nonce: u8) -> ProgramResult {
-        let loan = &mut ctx.accounts.loan_account;
+    pub fn make_loan(ctx: Context<MakeLoan>) -> ProgramResult {
         let listing = &mut ctx.accounts.listing_account;
 
         listing.state = ListingState::Active as u8;
-        loan.lender = ctx.accounts.lender.key();
-        loan.listing = listing.key();
-        loan.nonce = nonce;
-        loan.start_date = ctx.accounts.clock.unix_timestamp;
+        listing.lender = ctx.accounts.lender.key();
+        listing.start_date = ctx.accounts.clock.unix_timestamp;
 
         anchor_lang::solana_program::program::invoke(
             &anchor_lang::solana_program::system_instruction::transfer(
-                &loan.lender,
-                &listing.authority,
+                &listing.lender,
+                &listing.borrower,
                 listing.amount,
             ),
             &[
@@ -91,11 +88,10 @@ pub mod dexloan {
     }
 
     pub fn repay_loan(ctx: Context<RepayLoan>) -> ProgramResult {
-        let loan = &mut ctx.accounts.loan_account;
         let listing = &mut ctx.accounts.listing_account;
 
         let unix_timestamp = ctx.accounts.clock.unix_timestamp;
-        let loan_start_date = loan.start_date;
+        let loan_start_date = listing.start_date;
         let loan_basis_points = listing.basis_points as u64;
         let loan_duration = (unix_timestamp - loan_start_date) as u64;
         let pro_rata_interest_rate = ((loan_basis_points / 100) / SECONDS_PER_YEAR) * loan_duration;
@@ -110,8 +106,8 @@ pub mod dexloan {
 
         anchor_lang::solana_program::program::invoke(
             &anchor_lang::solana_program::system_instruction::transfer(
-                &listing.authority,
-                &loan.lender,
+                &listing.borrower,
+                &listing.lender,
                 amount_due,
             ),
             &[
@@ -139,12 +135,11 @@ pub mod dexloan {
     }
 
     pub fn repossess_collateral(ctx: Context<RepossessCollateral>) -> Result<()> {
-        let loan = &mut ctx.accounts.loan_account;
         let listing = &mut ctx.accounts.listing_account;
 
 
         let unix_timestamp = ctx.accounts.clock.unix_timestamp as u64;
-        let loan_start_date = loan.start_date as u64;
+        let loan_start_date = listing.start_date as u64;
         let loan_duration = unix_timestamp - loan_start_date;
 
         if listing.duration > loan_duration  {
@@ -191,7 +186,7 @@ pub struct MakeListing<'info> {
     pub borrower_deposit_token_account: Account<'info, TokenAccount>,
     /// The new listing account
     #[account(
-        init,
+        init_if_needed,
         payer = borrower,
         seeds = [b"listing", mint.key().as_ref()],
         bump = bump,
@@ -226,7 +221,7 @@ pub struct CancelListing<'info> {
     pub borrower_deposit_token_account: Account<'info, TokenAccount>,
     #[account(
         mut,
-        constraint = listing_account.authority == *borrower.key,
+        constraint = listing_account.borrower == *borrower.key,
         constraint = listing_account.mint == mint.key(),
         constraint = listing_account.state == ListingState::Listed as u8,
     )]
@@ -240,7 +235,6 @@ pub struct CancelListing<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(loan_bump: u8)]
 pub struct MakeLoan<'info> {
     #[account(mut)]
     pub borrower: AccountInfo<'info>,
@@ -250,20 +244,11 @@ pub struct MakeLoan<'info> {
     /// The listing the loan is being issued against
     #[account(
         mut,
-        constraint = listing_account.authority == *borrower.key,
+        constraint = listing_account.borrower == *borrower.key,
         constraint = listing_account.mint == mint.key(),
         constraint = listing_account.state == ListingState::Listed as u8,
     )]
     pub listing_account: Account<'info, Listing>,
-    /// The new loan account
-    #[account(
-        init,
-        payer = lender,
-        seeds = [b"loan", listing_account.key().as_ref()],
-        space = LOAN_SIZE,
-        bump = loan_bump,
-    )]
-    pub loan_account: Account<'info, Loan>,
     pub mint: Account<'info, Mint>,
     /// Misc
     pub system_program: Program<'info, System>,
@@ -283,16 +268,11 @@ pub struct RepayLoan<'info> {
     pub lender: AccountInfo<'info>,
     #[account(
         mut,
-        constraint = listing_account.authority == *borrower.key,
+        constraint = listing_account.borrower == *borrower.key,
         constraint = listing_account.mint == mint.key(),
         constraint = listing_account.state == ListingState::Active as u8,
     )]
     pub listing_account: Account<'info, Listing>,
-    #[account(
-        constraint = loan_account.lender == *lender.key,
-        constraint = loan_account.listing == listing_account.key(),
-    )]
-    pub loan_account: Account<'info, Loan>,
     pub mint: Account<'info, Mint>,
     /// Misc
     pub system_program: Program<'info, System>,
@@ -316,10 +296,8 @@ pub struct RepossessCollateral<'info> {
     pub listing_account: Account<'info, Listing>,
     #[account(
         mut,
-        constraint = loan_account.lender == *lender.key,
-        constraint = loan_account.listing == listing_account.key(),
+        constraint = listing_account.lender == *lender.key,
     )]
-    pub loan_account: Account<'info, Loan>,
     pub mint: Account<'info, Mint>,
     /// Misc
     pub system_program: Program<'info, System>,
@@ -328,7 +306,7 @@ pub struct RepossessCollateral<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-const LISTING_SIZE: usize = 1 + 8 + 32 + 2 + 8 + 32 + 32 + 1 + 1 + 100;
+const LISTING_SIZE: usize = 1 + 8 + 32 + 32 + 2 + 8 + 8 + 32 + 32 + 1 + 1 + 120;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
 pub enum ListingState {
@@ -346,11 +324,15 @@ pub struct Listing {
     /// The amount of the loan
     pub amount: u64,
     /// The NFT holder
-    pub authority: Pubkey,
+    pub borrower: Pubkey,
+    /// The issuer of the loan
+    pub lender: Pubkey,
     /// Annualized return
     pub basis_points: u16,
     /// Duration of the loan in seconds
     pub duration: u64,
+    /// The start date of the loan
+    pub start_date: i64,
     /// The escrow where the collateral NFT is held
     pub escrow: Pubkey,
     /// The mint of the token being used for collateral
@@ -358,21 +340,6 @@ pub struct Listing {
     /// Misc
     pub bump: u8,
     pub escrow_bump: u8,
-}
-
-const LOAN_SIZE: usize = 8 + 32 + 32 + 8 + 100;
-
-#[account]
-pub struct Loan {
-    /// The start date of the loan
-    pub start_date: i64,
-    /// The issuer of the loan
-    pub lender: Pubkey,
-    /// The listing of the loan
-    pub listing: Pubkey,
-    /// Misc
-    pub nonce: u8,
-    
 }
 
 #[error]

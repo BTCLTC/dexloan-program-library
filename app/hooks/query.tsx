@@ -82,7 +82,7 @@ export function useListingsByOwnerQuery(
           },
           {
             memcmp: {
-              // filter listed
+              // filter borrower
               offset: 7 + 1 + 8 + 1,
               bytes: wallet?.publicKey.toBase58(),
             },
@@ -105,11 +105,20 @@ export function useLoansQuery(
     ["loans"],
     () => {
       if (wallet) {
-        return api.getLoans(connection, [
+        return api.getListings(connection, [
+          {
+            memcmp: {
+              // filter active
+              offset: 7 + 1,
+              bytes: bs58.encode(
+                new anchor.BN(api.ListingState.Active).toArrayLike(Buffer)
+              ),
+            },
+          },
           {
             memcmp: {
               // filter lender
-              offset: 7 + 8 + 1,
+              offset: 7 + 1 + 8 + 32 + 1,
               bytes: wallet?.publicKey.toBase58(),
             },
           },
@@ -143,7 +152,7 @@ export function useBorrowingsQuery(
           },
           {
             memcmp: {
-              // filter authority
+              // filter borrower
               offset: 7 + 1 + 8 + 1,
               bytes: wallet?.publicKey.toBase58(),
             },

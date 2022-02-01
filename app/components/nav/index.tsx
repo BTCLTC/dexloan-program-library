@@ -31,7 +31,7 @@ export const Nav = () => {
         <Heading size="L">LoanDex</Heading> {/* LOGO goes here */}
         <ul>
           <li>
-            <NavItem href="/">Listings</NavItem>
+            <NavItem href="/">Lend</NavItem>
           </li>
           <li>
             <NavItem href="/borrow">Borrow</NavItem>

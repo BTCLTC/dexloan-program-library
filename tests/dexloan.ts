@@ -28,7 +28,7 @@ describe("dexloan", () => {
       listing.escrow
     );
 
-    assert.equal(listing.authority, borrower.keypair.publicKey.toString());
+    assert.equal(listing.borrower, borrower.keypair.publicKey.toString());
     assert.equal(listing.basisPoints, options.basisPoints);
     assert.equal(listing.duration.toNumber(), options.loanDuration);
     assert.equal(listing.mint.toBase58(), borrower.mint.publicKey.toBase58());
@@ -58,7 +58,6 @@ describe("dexloan", () => {
 
     const lender = await helpers.createLoan(connection, borrower);
 
-    const loan = await borrower.program.account.loan.fetch(lender.loanAccount);
     const listing = await borrower.program.account.listing.fetch(
       borrower.listingAccount
     );
@@ -70,11 +69,14 @@ describe("dexloan", () => {
       borrowerPreLoanBalance + options.loanAmount,
       borrowerPostLoanBalance
     );
-    assert.equal(loan.listing.toBase58(), borrower.listingAccount.toBase58());
-    assert.equal(loan.lender.toBase58(), lender.keypair.publicKey.toBase58());
+    assert.equal(
+      listing.lender.toBase58(),
+      lender.keypair.publicKey.toBase58()
+    );
     assert.equal(listing.state, 1);
     assert(
-      loan.startDate.toNumber() > 0 && loan.startDate.toNumber() < Date.now()
+      listing.startDate.toNumber() > 0 &&
+        listing.startDate.toNumber() < Date.now()
     );
   });
 
@@ -93,7 +95,6 @@ describe("dexloan", () => {
     await borrower.program.rpc.repayLoan({
       accounts: {
         listingAccount: borrower.listingAccount,
-        loanAccount: lender.loanAccount,
         escrowAccount: borrower.escrowAccount,
         borrower: borrower.keypair.publicKey,
         borrowerDepositTokenAccount: borrower.associatedAddress.address,
@@ -195,7 +196,6 @@ describe("dexloan", () => {
         lender: lender.keypair.publicKey,
         lenderTokenAccount: tokenAccountInfo.address,
         listingAccount: borrower.listingAccount,
-        loanAccount: lender.loanAccount,
         mint: listing.mint,
         systemProgram: anchor.web3.SystemProgram.programId,
         tokenProgram: splToken.TOKEN_PROGRAM_ID,
@@ -251,7 +251,6 @@ describe("dexloan", () => {
           lender: lender.keypair.publicKey,
           lenderTokenAccount: tokenAccountInfo.address,
           listingAccount: borrower.listingAccount,
-          loanAccount: lender.loanAccount,
           mint: listing.mint,
           systemProgram: anchor.web3.SystemProgram.programId,
           tokenProgram: splToken.TOKEN_PROGRAM_ID,
@@ -306,7 +305,6 @@ describe("dexloan", () => {
           lender: lender.keypair.publicKey,
           lenderTokenAccount: tokenAccountInfo.address,
           listingAccount: borrower.listingAccount,
-          loanAccount: lender.loanAccount,
           mint: listing.mint,
           systemProgram: anchor.web3.SystemProgram.programId,
           tokenProgram: splToken.TOKEN_PROGRAM_ID,
@@ -327,7 +325,6 @@ describe("dexloan", () => {
           lender: keypair.publicKey,
           lenderTokenAccount: tokenAccountInfo.address,
           listingAccount: borrower.listingAccount,
-          loanAccount: lender.loanAccount,
           mint: listing.mint,
           systemProgram: anchor.web3.SystemProgram.programId,
           tokenProgram: splToken.TOKEN_PROGRAM_ID,

@@ -38,8 +38,8 @@ const Listings: NextPage = () => {
     publicKey: anchor.web3.PublicKey;
     account: {
       amount: anchor.BN;
-      authority: anchor.web3.PublicKey;
       basisPoints: number;
+      borrower: anchor.web3.PublicKey;
       duration: anchor.BN;
       escrow: anchor.web3.PublicKey;
       mint: anchor.web3.PublicKey;
@@ -54,7 +54,7 @@ const Listings: NextPage = () => {
           connection,
           anchorWallet,
           selectedListing.account.mint,
-          selectedListing.account.authority,
+          selectedListing.account.borrower,
           selectedListing.publicKey
         );
       }
@@ -127,7 +127,7 @@ const Listings: NextPage = () => {
                         marginY="size-200"
                         onPress={() => onCreateLoan(item)}
                       >
-                        Create Loan
+                        Lend
                       </Button>
                     </Flex>
                   </Card>

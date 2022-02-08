@@ -64,20 +64,20 @@ export async function mintNFT(
   return { mint, associatedAddress };
 }
 
-interface ListingOptions {
-  basisPoints: number;
-  loanAmount: number;
-  loanDuration: number;
+export class ListingOptions {
+  public amount;
+  public basisPoints;
+  public duration;
 }
 
-export async function createListing(
+export async function initListing(
   connection: anchor.web3.Connection,
-  listingOptions: ListingOptions
+  options: {
+    amount: number;
+    basisPoints: number;
+    duration: number;
+  }
 ) {
-  const loanAmount = new anchor.BN(listingOptions.loanAmount);
-  const loanDuration = new anchor.BN(listingOptions.loanDuration);
-  const basisPoints = new anchor.BN(listingOptions.basisPoints);
-
   const keypair = anchor.web3.Keypair.generate();
   const provider = getProvider(connection, keypair);
   const program = getProgram(provider);
@@ -96,25 +96,23 @@ export async function createListing(
       program.programId
     );
 
-  await program.rpc.makeListing(
-    bump,
-    escrowBump,
-    loanAmount,
-    loanDuration,
-    basisPoints,
-    {
-      accounts: {
-        escrowAccount,
-        listingAccount,
-        borrower: keypair.publicKey,
-        borrowerDepositTokenAccount: associatedAddress.address,
-        mint: mint.publicKey,
-        tokenProgram: splToken.TOKEN_PROGRAM_ID,
-        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      },
-    }
-  );
+  const listingOptions = new ListingOptions();
+  listingOptions.amount = new anchor.BN(options.amount);
+  listingOptions.basisPoints = new anchor.BN(options.basisPoints);
+  listingOptions.duration = new anchor.BN(options.duration);
+
+  await program.rpc.initListing(listingOptions, {
+    accounts: {
+      escrowAccount,
+      listingAccount,
+      borrower: keypair.publicKey,
+      borrowerDepositTokenAccount: associatedAddress.address,
+      mint: mint.publicKey,
+      tokenProgram: splToken.TOKEN_PROGRAM_ID,
+      rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+      systemProgram: anchor.web3.SystemProgram.programId,
+    },
+  });
 
   return {
     mint,

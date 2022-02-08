@@ -19,7 +19,7 @@ pub mod dexloan {
         listing.mint = ctx.accounts.mint.key();
         listing.escrow = ctx.accounts.escrow_account.key();
         listing.escrow_bump = *ctx.bumps.get("escrow_account").unwrap();
-        listing.state = ListingState::Initialized as u8;
+        listing.state = ListingState::Listed as u8;
 
         listing.amount = options.amount;
         listing.basis_points = options.basis_points;
@@ -210,7 +210,8 @@ pub struct InitListing<'info> {
     pub borrower: Signer<'info>,
     #[account(
         mut,
-        constraint = borrower_deposit_token_account.mint == mint.key()
+        constraint = borrower_deposit_token_account.mint == mint.key(),
+        constraint = borrower_deposit_token_account.owner == borrower.key(),
     )]
     pub borrower_deposit_token_account: Box<Account<'info, TokenAccount>>,
     /// The new listing account
@@ -229,10 +230,6 @@ pub struct InitListing<'info> {
         seeds = [b"escrow", mint.key().as_ref()],
         bump,
         token::mint = mint,
-        // We want the program itself to have authority over the escrow token
-        // account, so we need to use some program-derived address here.
-        // The escrow token account itself already lives at a program-derived
-        // address, so we can set its authority to be its own address.
         token::authority = escrow_account,
     )]
     pub escrow_account: Box<Account<'info, TokenAccount>>,
@@ -250,14 +247,15 @@ pub struct MakeListing<'info> {
     pub borrower: Signer<'info>,
     #[account(
         mut,
-        constraint = borrower_deposit_token_account.mint == mint.key()
+        constraint = borrower_deposit_token_account.mint == mint.key(),
+        constraint = borrower_deposit_token_account.owner == borrower.key(),
     )]
     pub borrower_deposit_token_account: Box<Account<'info, TokenAccount>>,
-    /// The new listing account
+    /// The listing account to be used
     #[account(
         mut,
         constraint = listing_account.mint == mint.key(),
-        constraint = listing_account.escrow == escrow_account.key()
+        constraint = listing_account.escrow == escrow_account.key(),
     )]
     pub listing_account: Account<'info, Listing>,
     /// This is where we'll store the borrower's token
@@ -267,10 +265,6 @@ pub struct MakeListing<'info> {
         seeds = [b"escrow", mint.key().as_ref()],
         bump,
         token::mint = mint,
-        // We want the program itself to have authority over the escrow token
-        // account, so we need to use some program-derived address here.
-        // The escrow token account itself already lives at a program-derived
-        // address, so we can set its authority to be its own address.
         token::authority = escrow_account,
     )]
     pub escrow_account: Box<Account<'info, TokenAccount>>,

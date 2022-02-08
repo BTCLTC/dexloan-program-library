@@ -12,11 +12,11 @@ describe("dexloan", () => {
 
   it("Creates a dexloan listing", async () => {
     const options = {
+      amount: anchor.web3.LAMPORTS_PER_SOL,
       basisPoints: 500,
-      loanAmount: anchor.web3.LAMPORTS_PER_SOL,
-      loanDuration: 30 * 24 * 60 * 60, // 30 days
+      duration: 30 * 24 * 60 * 60, // 30 days
     };
-    const borrower = await helpers.createListing(connection, options);
+    const borrower = await helpers.initListing(connection, options);
 
     const listing = await borrower.program.account.listing.fetch(
       borrower.listingAccount
@@ -30,7 +30,7 @@ describe("dexloan", () => {
 
     assert.equal(listing.borrower, borrower.keypair.publicKey.toString());
     assert.equal(listing.basisPoints, options.basisPoints);
-    assert.equal(listing.duration.toNumber(), options.loanDuration);
+    assert.equal(listing.duration.toNumber(), options.duration);
     assert.equal(listing.mint.toBase58(), borrower.mint.publicKey.toBase58());
     assert.equal(borrowerTokenAccount.amount.toNumber(), 0);
     assert.equal(escrowTokenAccount.amount.toNumber(), 1);
@@ -38,7 +38,7 @@ describe("dexloan", () => {
       escrowTokenAccount.mint.toBase58(),
       borrower.mint.publicKey.toBase58()
     );
-    assert.equal(listing.state, 0);
+    assert.equal(listing.state, 1);
     assert.equal(
       escrowTokenAccount.owner.toBase58(),
       borrower.escrowAccount.toBase58()
@@ -47,11 +47,11 @@ describe("dexloan", () => {
 
   it("Allows loans to be given", async () => {
     const options = {
+      amount: anchor.web3.LAMPORTS_PER_SOL,
       basisPoints: 500,
-      loanAmount: anchor.web3.LAMPORTS_PER_SOL,
-      loanDuration: 30 * 24 * 60 * 60, // 30 days
+      duration: 30 * 24 * 60 * 60, // 30 days
     };
-    const borrower = await helpers.createListing(connection, options);
+    const borrower = await helpers.initListing(connection, options);
     const borrowerPreLoanBalance = await connection.getBalance(
       borrower.keypair.publicKey
     );
@@ -66,14 +66,14 @@ describe("dexloan", () => {
     );
 
     assert.equal(
-      borrowerPreLoanBalance + options.loanAmount,
+      borrowerPreLoanBalance + options.amount,
       borrowerPostLoanBalance
     );
     assert.equal(
       listing.lender.toBase58(),
       lender.keypair.publicKey.toBase58()
     );
-    assert.equal(listing.state, 1);
+    assert.equal(listing.state, 2);
     assert(
       listing.startDate.toNumber() > 0 &&
         listing.startDate.toNumber() < Date.now()
@@ -82,11 +82,11 @@ describe("dexloan", () => {
 
   it("Allows loans to be repaid", async () => {
     const options = {
+      amount: anchor.web3.LAMPORTS_PER_SOL * 2,
       basisPoints: 700,
-      loanAmount: anchor.web3.LAMPORTS_PER_SOL * 2,
-      loanDuration: 30 * 24 * 60 * 60, // 30 days
+      duration: 30 * 24 * 60 * 60, // 30 days
     };
-    const borrower = await helpers.createListing(connection, options);
+    const borrower = await helpers.initListing(connection, options);
     const lender = await helpers.createLoan(connection, borrower);
     const lenderPreRepaymentBalance = await connection.getBalance(
       lender.keypair.publicKey
@@ -121,20 +121,17 @@ describe("dexloan", () => {
 
     assert.equal(borrowerTokenAccount.amount.toNumber(), 1);
     assert.equal(escrowTokenAccount.amount.toNumber(), 0);
-    assert(
-      lenderPostRepaymentBalance ===
-        lenderPreRepaymentBalance + options.loanAmount
-    );
-    assert.equal(listing.state, 2);
+    assert(lenderPostRepaymentBalance > lenderPreRepaymentBalance);
+    assert.equal(listing.state, 3);
   });
 
   it("Allows loans to be cancelled", async () => {
     const options = {
+      amount: anchor.web3.LAMPORTS_PER_SOL,
       basisPoints: 500,
-      loanAmount: anchor.web3.LAMPORTS_PER_SOL,
-      loanDuration: 30 * 24 * 60 * 60, // 30 days
+      duration: 30 * 24 * 60 * 60, // 30 days
     };
-    const borrower = await helpers.createListing(connection, options);
+    const borrower = await helpers.initListing(connection, options);
 
     await borrower.program.rpc.cancelListing({
       accounts: {
@@ -160,16 +157,16 @@ describe("dexloan", () => {
 
     assert.equal(borrowerTokenAccount.amount.toNumber(), 1);
     assert.equal(escrowTokenAccount.amount.toNumber(), 0);
-    assert.equal(listing.state, 3);
+    assert.equal(listing.state, 4);
   });
 
   it("Allows loans an overdue loan to be repossessed", async () => {
     const options = {
+      amount: anchor.web3.LAMPORTS_PER_SOL,
       basisPoints: 500,
-      loanAmount: anchor.web3.LAMPORTS_PER_SOL,
-      loanDuration: 1, // 1 second
+      duration: 1, // 1 second
     };
-    const borrower = await helpers.createListing(connection, options);
+    const borrower = await helpers.initListing(connection, options);
 
     const lender = await helpers.createLoan(connection, borrower);
 
@@ -216,16 +213,16 @@ describe("dexloan", () => {
 
     assert.equal(escrowTokenAccount.amount.toNumber(), 0);
     assert.equal(lenderTokenAccount.amount.toNumber(), 1);
-    assert.equal(defaultedListing.state, 4);
+    assert.equal(defaultedListing.state, 5);
   });
 
   it("Will not allow a loan to be repossessed if not overdue", async () => {
     const options = {
+      amount: anchor.web3.LAMPORTS_PER_SOL,
       basisPoints: 500,
-      loanAmount: anchor.web3.LAMPORTS_PER_SOL,
-      loanDuration: 60 * 60, // 1 hour
+      duration: 60 * 60, // 1 hour
     };
-    const borrower = await helpers.createListing(connection, options);
+    const borrower = await helpers.initListing(connection, options);
 
     const lender = await helpers.createLoan(connection, borrower);
 
@@ -267,11 +264,11 @@ describe("dexloan", () => {
 
   it("Will only allow lender to repossess an overdue loan", async () => {
     const options = {
+      amount: anchor.web3.LAMPORTS_PER_SOL,
       basisPoints: 500,
-      loanAmount: anchor.web3.LAMPORTS_PER_SOL,
-      loanDuration: 1, // 1 second
+      duration: 1, // 1 second
     };
-    const borrower = await helpers.createListing(connection, options);
+    const borrower = await helpers.initListing(connection, options);
 
     const lender = await helpers.createLoan(connection, borrower);
 

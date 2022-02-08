@@ -94,7 +94,7 @@ pub mod dexloan {
         let loan_start_date = listing.start_date;
         let loan_basis_points = listing.basis_points as f64;
         let loan_duration = (unix_timestamp - loan_start_date) as f64;
-        let pro_rata_interest_rate = ((loan_basis_points / 100 as f64) / SECONDS_PER_YEAR) * loan_duration;
+        let pro_rata_interest_rate = ((loan_basis_points / 10000 as f64) / SECONDS_PER_YEAR) * loan_duration;
         let interest_due = listing.amount as f64 * pro_rata_interest_rate;
         let amount_due = listing.amount + interest_due.round() as u64;
         

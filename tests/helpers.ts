@@ -85,16 +85,19 @@ export async function initListing(
 
   const { mint, associatedAddress } = await mintNFT(connection, keypair);
 
-  const [listingAccount, bump] = await anchor.web3.PublicKey.findProgramAddress(
-    [Buffer.from("listing"), mint.publicKey.toBuffer()],
+  const [listingAccount] = await anchor.web3.PublicKey.findProgramAddress(
+    [
+      Buffer.from("listing"),
+      mint.publicKey.toBuffer(),
+      keypair.publicKey.toBuffer(),
+    ],
     program.programId
   );
 
-  const [escrowAccount, escrowBump] =
-    await anchor.web3.PublicKey.findProgramAddress(
-      [Buffer.from("escrow"), mint.publicKey.toBuffer()],
-      program.programId
-    );
+  const [escrowAccount] = await anchor.web3.PublicKey.findProgramAddress(
+    [Buffer.from("escrow"), mint.publicKey.toBuffer()],
+    program.programId
+  );
 
   const listingOptions = new ListingOptions();
   listingOptions.amount = new anchor.BN(options.amount);

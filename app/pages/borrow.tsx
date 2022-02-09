@@ -116,7 +116,7 @@ const BorrowDialog: React.FC<BorrowDialogProps> = ({ nft, setDialog }) => {
   const form = useForm<FormFields>();
 
   const metadataFileQuery = useMetadataFileQuery(nft?.metadata.data?.data?.uri);
-
+  console.log("NFT", nft?.accountInfo.data.mint.toBase58());
   const mutation = useMutation(
     (variables: FormFields) => {
       if (
@@ -227,8 +227,7 @@ const BorrowDialog: React.FC<BorrowDialogProps> = ({ nft, setDialog }) => {
                         maximumFractionDigits: 1,
                         style: "percent",
                       }}
-                      minValue={0.01}
-                      maxValue={6.5}
+                      minValue={0.05}
                       validationState={invalid ? "invalid" : undefined}
                       onChange={onChange}
                     />

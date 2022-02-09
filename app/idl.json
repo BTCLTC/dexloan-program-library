@@ -101,16 +101,10 @@
       ],
       "args": [
         {
-          "name": "amount",
-          "type": "u64"
-        },
-        {
-          "name": "duration",
-          "type": "u64"
-        },
-        {
-          "name": "basisPoints",
-          "type": "u32"
+          "name": "options",
+          "type": {
+            "defined": "ListingOptions"
+          }
         }
       ]
     },
@@ -412,5 +406,8 @@
       "name": "InvalidState",
       "msg": "Invalid state"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "Da2AAtcBWTQ1dQdEQWzqSRpF9tCB6wWVbCAEf2P3iAzb"
+  }
 }

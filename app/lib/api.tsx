@@ -158,7 +158,7 @@ export async function createListing(
   const program = getProgram(provider);
 
   const [listingAccount] = await anchor.web3.PublicKey.findProgramAddress(
-    [Buffer.from("listing"), mint.toBuffer()],
+    [Buffer.from("listing"), mint.toBuffer(), wallet.publicKey.toBuffer()],
     program.programId
   );
 
@@ -167,18 +167,37 @@ export async function createListing(
     program.programId
   );
 
-  await program.rpc.initListing(new ListingOptions(options), {
-    accounts: {
-      escrowAccount,
-      listingAccount,
-      mint,
-      borrowerDepositTokenAccount,
-      borrower: wallet.publicKey,
-      tokenProgram: splToken.TOKEN_PROGRAM_ID,
-      rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-      systemProgram: anchor.web3.SystemProgram.programId,
-    },
-  });
+  const listingOptions = new ListingOptions(options);
+  const accounts = {
+    escrowAccount,
+    listingAccount,
+    mint,
+    borrowerDepositTokenAccount,
+    borrower: wallet.publicKey,
+    tokenProgram: splToken.TOKEN_PROGRAM_ID,
+    rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+    systemProgram: anchor.web3.SystemProgram.programId,
+  };
+
+  const currentListing = await program.account.listing.fetch(listingAccount);
+  console.log("currentListing");
+  console.log("borrower: ", currentListing.borrower.toBase58());
+  console.log("mint: ", currentListing.mint.toBase58(), mint.toBase58());
+  console.log(
+    "escrow: ",
+    currentListing.escrow.toBase58(),
+    escrowAccount.toBase58()
+  );
+  debugger;
+  if (currentListing) {
+    await program.rpc.makeListing(listingOptions, {
+      accounts,
+    });
+  } else {
+    await program.rpc.initListing(listingOptions, {
+      accounts,
+    });
+  }
 }
 
 export async function createLoan(

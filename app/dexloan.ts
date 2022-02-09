@@ -101,16 +101,10 @@ export type Dexloan = {
       ],
       "args": [
         {
-          "name": "amount",
-          "type": "u64"
-        },
-        {
-          "name": "duration",
-          "type": "u64"
-        },
-        {
-          "name": "basisPoints",
-          "type": "u32"
+          "name": "options",
+          "type": {
+            "defined": "ListingOptions"
+          }
         }
       ]
     },
@@ -518,16 +512,10 @@ export const IDL: Dexloan = {
       ],
       "args": [
         {
-          "name": "amount",
-          "type": "u64"
-        },
-        {
-          "name": "duration",
-          "type": "u64"
-        },
-        {
-          "name": "basisPoints",
-          "type": "u32"
+          "name": "options",
+          "type": {
+            "defined": "ListingOptions"
+          }
         }
       ]
     },

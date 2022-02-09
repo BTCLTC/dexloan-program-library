@@ -41,9 +41,7 @@ pub mod dexloan {
 
     pub fn make_listing(
         ctx: Context<MakeListing>,
-        amount: u64,
-        duration: u64,
-        basis_points: u32,
+        options: ListingOptions
     ) -> ProgramResult {
         let listing = &mut ctx.accounts.listing_account;
 
@@ -51,9 +49,9 @@ pub mod dexloan {
             return Err(ErrorCode::InvalidState.into())
         }
 
-        listing.amount = amount;
-        listing.basis_points = basis_points;
-        listing.duration = duration;
+        listing.amount = options.amount;
+        listing.basis_points = options.basis_points;
+        listing.duration = options.duration;
         listing.state = ListingState::Listed as u8;
         listing.borrower = ctx.accounts.borrower.key();
 
@@ -218,7 +216,7 @@ pub struct InitListing<'info> {
     #[account(
         init,
         payer = borrower,
-        seeds = [b"listing", mint.key().as_ref()],
+        seeds = [b"listing", mint.key().as_ref(), borrower.key().as_ref()],
         bump,
         space = LISTING_SIZE,
     )]

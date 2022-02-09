@@ -3,8 +3,8 @@ import * as splToken from "@solana/spl-token";
 import { TokenAccount } from "@metaplex-foundation/mpl-core";
 import { Metadata } from "@metaplex-foundation/mpl-token-metadata";
 import { AnchorWallet } from "@solana/wallet-adapter-react";
-import idl from "../target/idl/dexloan.json";
-import type { Dexloan } from "../target/types/dexloan";
+import idl from "../idl.json";
+import type { Dexloan } from "../dexloan";
 
 export function getProgram(provider: anchor.Provider): anchor.Program<Dexloan> {
   // @ts-ignore

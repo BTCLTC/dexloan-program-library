@@ -110,7 +110,7 @@
         },
         {
           "name": "basisPoints",
-          "type": "u16"
+          "type": "u32"
         }
       ]
     },
@@ -323,7 +323,7 @@
           },
           {
             "name": "basisPoints",
-            "type": "u16"
+            "type": "u32"
           },
           {
             "name": "duration",
@@ -369,7 +369,7 @@
           },
           {
             "name": "basisPoints",
-            "type": "u16"
+            "type": "u32"
           }
         ]
       }

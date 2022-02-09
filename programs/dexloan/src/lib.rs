@@ -43,7 +43,7 @@ pub mod dexloan {
         ctx: Context<MakeListing>,
         amount: u64,
         duration: u64,
-        basis_points: u16,
+        basis_points: u32,
     ) -> ProgramResult {
         let listing = &mut ctx.accounts.listing_account;
 
@@ -200,7 +200,7 @@ pub mod dexloan {
 pub struct ListingOptions {
     amount: u64,
     duration: u64,
-    basis_points: u16
+    basis_points: u32
 }
 
 #[derive(Accounts)]
@@ -368,7 +368,18 @@ pub struct RepossessCollateral<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-const LISTING_SIZE: usize = 1 + 8 + 32 + 32 + 2 + 8 + 8 + 32 + 32 + 1 + 1 + 120;
+const LISTING_SIZE: usize = 1 // state
++ 8 // amount
++ 32 // borrower
++ 32 // lender
++ 4 // basis_points
++ 8 // duration
++ 8 // start_date
++ 32 // escrow
++ 32 // mint
++ 1 // bump
++ 1 // escrow bump
++ 120; // padding
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
 pub enum ListingState {
@@ -391,7 +402,7 @@ pub struct Listing {
     /// The issuer of the loan
     pub lender: Pubkey,
     /// Annualized return
-    pub basis_points: u16,
+    pub basis_points: u32,
     /// Duration of the loan in seconds
     pub duration: u64,
     /// The start date of the loan

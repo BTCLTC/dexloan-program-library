@@ -110,7 +110,7 @@ export type Dexloan = {
         },
         {
           "name": "basisPoints",
-          "type": "u16"
+          "type": "u32"
         }
       ]
     },
@@ -323,7 +323,7 @@ export type Dexloan = {
           },
           {
             "name": "basisPoints",
-            "type": "u16"
+            "type": "u32"
           },
           {
             "name": "duration",
@@ -369,7 +369,7 @@ export type Dexloan = {
           },
           {
             "name": "basisPoints",
-            "type": "u16"
+            "type": "u32"
           }
         ]
       }
@@ -527,7 +527,7 @@ export const IDL: Dexloan = {
         },
         {
           "name": "basisPoints",
-          "type": "u16"
+          "type": "u32"
         }
       ]
     },
@@ -740,7 +740,7 @@ export const IDL: Dexloan = {
           },
           {
             "name": "basisPoints",
-            "type": "u16"
+            "type": "u32"
           },
           {
             "name": "duration",
@@ -786,7 +786,7 @@ export const IDL: Dexloan = {
           },
           {
             "name": "basisPoints",
-            "type": "u16"
+            "type": "u32"
           }
         ]
       }

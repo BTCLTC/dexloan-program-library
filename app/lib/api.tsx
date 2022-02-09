@@ -24,11 +24,12 @@ export function getProvider(
 }
 
 export enum ListingState {
-  Listed = 0,
-  Active = 1,
-  Repaid = 2,
-  Cancelled = 3,
-  Defaulted = 4,
+  Initialized = 0,
+  Listed = 1,
+  Active = 2,
+  Repaid = 3,
+  Cancelled = 4,
+  Defaulted = 5,
 }
 
 export async function getListings(
@@ -126,10 +127,20 @@ export async function getNFTs(
     ) as { accountInfo: TokenAccount; metadata: Metadata }[];
 }
 
-export interface ListingOptions {
-  amount: number;
-  duration: number;
-  basisPoints: number;
+class ListingOptions {
+  public amount: anchor.BN;
+  public duration: anchor.BN;
+  public basisPoints: number;
+
+  constructor(options: {
+    amount: number;
+    duration: number;
+    basisPoints: number;
+  }) {
+    this.amount = new anchor.BN(options.amount);
+    this.duration = new anchor.BN(options.duration);
+    this.basisPoints = options.basisPoints;
+  }
 }
 
 export async function createListing(
@@ -137,45 +148,37 @@ export async function createListing(
   wallet: AnchorWallet,
   mint: anchor.web3.PublicKey,
   borrowerDepositTokenAccount: anchor.web3.PublicKey,
-  options: ListingOptions
+  options: {
+    amount: number;
+    duration: number;
+    basisPoints: number;
+  }
 ) {
-  const loanAmount = new anchor.BN(options.amount);
-  const loanDuration = new anchor.BN(options.duration);
-  const basisPoints = new anchor.BN(options.basisPoints);
-
   const provider = getProvider(connection, wallet as typeof anchor.Wallet);
   const program = getProgram(provider);
 
-  const [listingAccount, bump] = await anchor.web3.PublicKey.findProgramAddress(
+  const [listingAccount] = await anchor.web3.PublicKey.findProgramAddress(
     [Buffer.from("listing"), mint.toBuffer()],
     program.programId
   );
 
-  const [escrowAccount, escrowBump] =
-    await anchor.web3.PublicKey.findProgramAddress(
-      [Buffer.from("escrow"), mint.toBuffer()],
-      program.programId
-    );
-
-  await program.rpc.makeListing(
-    bump,
-    escrowBump,
-    loanAmount,
-    loanDuration,
-    basisPoints,
-    {
-      accounts: {
-        escrowAccount,
-        listingAccount,
-        mint,
-        borrowerDepositTokenAccount,
-        borrower: wallet.publicKey,
-        tokenProgram: splToken.TOKEN_PROGRAM_ID,
-        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      },
-    }
+  const [escrowAccount] = await anchor.web3.PublicKey.findProgramAddress(
+    [Buffer.from("escrow"), mint.toBuffer()],
+    program.programId
   );
+
+  await program.rpc.initListing(new ListingOptions(options), {
+    accounts: {
+      escrowAccount,
+      listingAccount,
+      mint,
+      borrowerDepositTokenAccount,
+      borrower: wallet.publicKey,
+      tokenProgram: splToken.TOKEN_PROGRAM_ID,
+      rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+      systemProgram: anchor.web3.SystemProgram.programId,
+    },
+  });
 }
 
 export async function createLoan(

@@ -70,12 +70,6 @@ const Borrow: NextPage = () => {
                   <Typography>
                     <Heading size="S">{nft.metadata.data?.data?.name}</Heading>
                   </Typography>
-                  <StatusLight
-                    marginStart="calc(0px - size-100)"
-                    variant="positive"
-                  >
-                    Verified Collection
-                  </StatusLight>
                   <Divider size="S" marginTop="size-600" />
                   <Flex direction="row" justifyContent="right">
                     <Button

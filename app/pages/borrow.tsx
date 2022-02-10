@@ -109,7 +109,7 @@ const BorrowDialog: React.FC<BorrowDialogProps> = ({ nft, setDialog }) => {
   const form = useForm<FormFields>();
 
   const metadataFileQuery = useMetadataFileQuery(nft?.metadata.data?.data?.uri);
-  console.log("NFT", nft?.accountInfo.data.mint.toBase58());
+
   const mutation = useMutation(
     (variables: FormFields) => {
       if (

@@ -179,10 +179,6 @@ export async function createListing(
     systemProgram: anchor.web3.SystemProgram.programId,
   };
 
-  for (const key in accounts) {
-    console.log(key, accounts[key as keyof typeof accounts]?.toBase58());
-  }
-
   try {
     await program.account.listing.fetch(listingAccount);
     await program.rpc.makeListing(listingOptions, {
@@ -271,11 +267,6 @@ export async function repayLoan(
       ],
       splToken.ASSOCIATED_TOKEN_PROGRAM_ID
     );
-
-  console.log(
-    "borrowerDepositTokenAccount: ",
-    borrowerDepositTokenAccount.toBase58()
-  );
 
   await program.rpc.repayLoan({
     accounts: {

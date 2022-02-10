@@ -9,7 +9,7 @@ import {
 } from "@adobe/react-spectrum";
 import { useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import type { NextPage } from "next";
-import { useMutation, useQuery, useQueryClient } from "react-query";
+import { useMutation, useQueryClient } from "react-query";
 import { toast } from "react-toastify";
 import * as utils from "../utils";
 import * as api from "../lib/api";
@@ -84,7 +84,7 @@ const Manage: NextPage = () => {
         {borrowingsQueryResult.data?.length ? (
           <>
             <View marginBottom="size-200" marginTop="size-600">
-              <Divider size="M" />
+              {loansQueryResult.data?.length ? <Divider size="M" /> : null}
               <Typography>
                 <Heading>Your Borrowings</Heading>
               </Typography>
@@ -114,7 +114,7 @@ const Manage: NextPage = () => {
         {listingsQueryResult.data?.length ? (
           <>
             <View marginBottom="size-200" marginTop="size-600">
-              <Divider size="M" />
+              {borrowingsQueryResult.data?.length ? <Divider size="M" /> : null}
               <Typography>
                 <Heading>Listed</Heading>
               </Typography>
@@ -165,6 +165,8 @@ const LoanCard: React.FC<LoanCardProps> = ({
   startDate,
   uri,
 }) => {
+  // TODO - reposess
+
   return (
     <Card uri={uri}>
       <Typography>

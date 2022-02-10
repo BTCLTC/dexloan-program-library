@@ -18,7 +18,8 @@ import { useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import type { NextPage } from "next";
 import { useRouter } from "next/router";
 import { useState } from "react";
-import { useMutation } from "react-query";
+import { useMutation, useQueryClient } from "react-query";
+import { toast } from "react-toastify";
 import * as utils from "../utils";
 import * as api from "../lib/api";
 import { useListingsQuery } from "../hooks/query";
@@ -33,6 +34,7 @@ const Listings: NextPage = () => {
   const { connection } = useConnection();
   const anchorWallet = useAnchorWallet();
   const [handleConnect] = useWalletConnect();
+  const queryClient = useQueryClient();
   const queryResult = useListingsQuery(connection);
 
   const [selectedListing, setDialog] = useState<{
@@ -63,8 +65,20 @@ const Listings: NextPage = () => {
     },
     {
       onSuccess() {
+        queryClient.invalidateQueries([
+          "loans",
+          anchorWallet?.publicKey.toBase58(),
+        ]);
+
         setDialog(null);
+
         router.push("/manage");
+      },
+      onError(err) {
+        console.error(err);
+        if (err instanceof Error) {
+          toast.error("Error: " + err.message);
+        }
       },
     }
   );
@@ -165,8 +179,8 @@ const Listings: NextPage = () => {
                   <Text>
                     This loan may be repaid in full at any time. Interest will
                     be calulated on a pro-rata basis. If the borrower fails to
-                    repay the loan, you may exercise the right to repossess the
-                    NFT.
+                    repay the loan before the expiry date, you may exercise the
+                    right to repossess the NFT.
                   </Text>
                 </View>
               )}

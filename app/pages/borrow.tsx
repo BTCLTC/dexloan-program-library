@@ -12,7 +12,6 @@ import {
   Form,
   NumberField,
   View,
-  StatusLight,
   ProgressCircle,
 } from "@adobe/react-spectrum";
 import {

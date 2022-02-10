@@ -209,7 +209,6 @@ pub struct InitListing<'info> {
     #[account(
         mut,
         constraint = borrower_deposit_token_account.mint == mint.key(),
-        constraint = borrower_deposit_token_account.owner == borrower.key(),
     )]
     pub borrower_deposit_token_account: Box<Account<'info, TokenAccount>>,
     /// The new listing account

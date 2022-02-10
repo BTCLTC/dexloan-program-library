@@ -179,21 +179,16 @@ export async function createListing(
     systemProgram: anchor.web3.SystemProgram.programId,
   };
 
-  const currentListing = await program.account.listing.fetch(listingAccount);
-  console.log("currentListing");
-  console.log("borrower: ", currentListing.borrower.toBase58());
-  console.log("mint: ", currentListing.mint.toBase58(), mint.toBase58());
-  console.log(
-    "escrow: ",
-    currentListing.escrow.toBase58(),
-    escrowAccount.toBase58()
-  );
-  debugger;
-  if (currentListing) {
+  for (const key in accounts) {
+    console.log(key, accounts[key as keyof typeof accounts]?.toBase58());
+  }
+
+  try {
+    await program.account.listing.fetch(listingAccount);
     await program.rpc.makeListing(listingOptions, {
       accounts,
     });
-  } else {
+  } catch {
     await program.rpc.initListing(listingOptions, {
       accounts,
     });

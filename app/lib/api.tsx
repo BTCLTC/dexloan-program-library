@@ -47,26 +47,26 @@ export async function getListings(
     metadataAddresses
   );
 
-  const combinedAccounts = rawMetadataAccounts.map((account, index) => {
-    if (account) {
-      try {
-        const metadata = new Metadata(
-          metadataAddresses[index],
-          account as anchor.web3.AccountInfo<Buffer>
-        );
+  return rawMetadataAccounts
+    .map((account, index) => {
+      if (account) {
+        try {
+          const metadata = new Metadata(
+            metadataAddresses[index],
+            account as anchor.web3.AccountInfo<Buffer>
+          );
 
-        return {
-          metadata,
-          listing: listings[index],
-        };
-      } catch {
-        return null;
+          return {
+            metadata,
+            listing: listings[index],
+          };
+        } catch {
+          return null;
+        }
       }
-    }
-    return null;
-  });
-
-  return combinedAccounts;
+      return null;
+    })
+    .filter(Boolean);
 }
 
 export interface NFTResult {

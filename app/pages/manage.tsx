@@ -9,7 +9,7 @@ import {
 } from "@adobe/react-spectrum";
 import { useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import type { NextPage } from "next";
-import { useMutation, useQueryClient } from "react-query";
+import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "react-toastify";
 import * as utils from "../utils";
 import * as api from "../lib/api";
@@ -339,6 +339,7 @@ const ListedCard: React.FC<ListingCardProps> = ({
 }) => {
   const { connection } = useConnection();
   const anchorWallet = useAnchorWallet();
+  const queryClient = useQueryClient();
 
   const mutation = useMutation(
     () => {
@@ -362,6 +363,17 @@ const ListedCard: React.FC<ListingCardProps> = ({
       },
       onSuccess() {
         toast.success("Listing cancelled");
+
+        queryClient.setQueryData(
+          ["listings", anchorWallet?.publicKey.toBase58()],
+          (listings: any[] | undefined) => {
+            if (!listings) return [];
+
+            return listings.filter(
+              (item) => item.listing.publicKey.toBase58() !== listing.toBase58()
+            );
+          }
+        );
       },
     }
   );

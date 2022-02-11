@@ -335,6 +335,7 @@ export async function repossessCollateral(
   connection: anchor.web3.Connection,
   anchorWallet: AnchorWallet,
   mint: anchor.web3.PublicKey,
+  escrowAccount: anchor.web3.PublicKey,
   lenderTokenAccount: anchor.web3.PublicKey,
   listingAccount: anchor.web3.PublicKey
 ) {
@@ -343,11 +344,6 @@ export async function repossessCollateral(
     anchorWallet as typeof anchor.Wallet
   );
   const program = getProgram(provider);
-
-  const [escrowAccount] = await anchor.web3.PublicKey.findProgramAddress(
-    [Buffer.from("escrow"), mint.toBuffer()],
-    splToken.ASSOCIATED_TOKEN_PROGRAM_ID
-  );
 
   await program.rpc.repossessCollateral({
     accounts: {

@@ -266,7 +266,7 @@ export type Dexloan = {
         },
         {
           "name": "mint",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -677,7 +677,7 @@ export const IDL: Dexloan = {
         },
         {
           "name": "mint",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {

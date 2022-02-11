@@ -2,7 +2,11 @@ import * as anchor from "@project-serum/anchor";
 import * as splToken from "@solana/spl-token";
 import { TokenAccount } from "@metaplex-foundation/mpl-core";
 import { Metadata } from "@metaplex-foundation/mpl-token-metadata";
-import { AnchorWallet } from "@solana/wallet-adapter-react";
+import {
+  AnchorWallet,
+  Wallet,
+  WalletContextState,
+} from "@solana/wallet-adapter-react";
 import idl from "../idl.json";
 import type { Dexloan } from "../dexloan";
 
@@ -283,21 +287,16 @@ export async function repayLoan(
   });
 }
 
-export async function repossessCollateral(
+export async function getOrCreateTokenAccount(
   connection: anchor.web3.Connection,
-  wallet: AnchorWallet,
-  mint: anchor.web3.PublicKey,
-  listingAccount: anchor.web3.PublicKey
-) {
-  const provider = getProvider(connection, wallet as typeof anchor.Wallet);
-  const program = getProgram(provider);
+  wallet: WalletContextState,
+  mint: anchor.web3.PublicKey
+): Promise<anchor.web3.PublicKey> {
+  if (!wallet.publicKey) {
+    throw new Error("Wallet public key is not set");
+  }
 
-  const [escrowAccount] = await anchor.web3.PublicKey.findProgramAddress(
-    [Buffer.from("escrow"), mint.toBuffer()],
-    splToken.ASSOCIATED_TOKEN_PROGRAM_ID
-  );
-
-  const [lenderTokenAccount] = await anchor.web3.PublicKey.findProgramAddress(
+  const [tokenAccount] = await anchor.web3.PublicKey.findProgramAddress(
     [
       wallet.publicKey.toBuffer(),
       splToken.TOKEN_PROGRAM_ID.toBuffer(),
@@ -306,13 +305,57 @@ export async function repossessCollateral(
     splToken.ASSOCIATED_TOKEN_PROGRAM_ID
   );
 
+  const receiverAccount = await connection.getAccountInfo(tokenAccount);
+  console.log("receiverAccount", receiverAccount);
+  if (!receiverAccount) {
+    const transaction = new anchor.web3.Transaction({
+      feePayer: wallet.publicKey,
+    });
+
+    transaction.add(
+      splToken.Token.createAssociatedTokenAccountInstruction(
+        splToken.ASSOCIATED_TOKEN_PROGRAM_ID,
+        splToken.TOKEN_PROGRAM_ID,
+        mint,
+        tokenAccount,
+        wallet.publicKey,
+        wallet.publicKey
+      )
+    );
+
+    const txId = await wallet.sendTransaction(transaction, connection);
+
+    await connection.confirmTransaction(txId);
+  }
+
+  return tokenAccount;
+}
+
+export async function repossessCollateral(
+  connection: anchor.web3.Connection,
+  anchorWallet: AnchorWallet,
+  mint: anchor.web3.PublicKey,
+  lenderTokenAccount: anchor.web3.PublicKey,
+  listingAccount: anchor.web3.PublicKey
+) {
+  const provider = getProvider(
+    connection,
+    anchorWallet as typeof anchor.Wallet
+  );
+  const program = getProgram(provider);
+
+  const [escrowAccount] = await anchor.web3.PublicKey.findProgramAddress(
+    [Buffer.from("escrow"), mint.toBuffer()],
+    splToken.ASSOCIATED_TOKEN_PROGRAM_ID
+  );
+
   await program.rpc.repossessCollateral({
     accounts: {
       escrowAccount,
       mint,
-      lender: wallet.publicKey,
       lenderTokenAccount,
       listingAccount,
+      lender: anchorWallet.publicKey,
       systemProgram: anchor.web3.SystemProgram.programId,
       tokenProgram: splToken.TOKEN_PROGRAM_ID,
       clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,

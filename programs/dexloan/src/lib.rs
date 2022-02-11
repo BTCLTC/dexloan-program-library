@@ -118,7 +118,7 @@ pub mod dexloan {
         let loan_start_date = listing.start_date;
         let loan_basis_points = listing.basis_points as f64;
         let loan_duration = (unix_timestamp - loan_start_date) as f64;
-        let pro_rata_interest_rate = ((loan_basis_points / 10000 as f64) / SECONDS_PER_YEAR) * loan_duration;
+        let pro_rata_interest_rate = ((loan_basis_points / 10_000 as f64) / SECONDS_PER_YEAR) * loan_duration;
         let interest_due = listing.amount as f64 * pro_rata_interest_rate;
         let amount_due = listing.amount + interest_due.round() as u64;
         
@@ -352,10 +352,6 @@ pub struct RepossessCollateral<'info> {
         constraint = listing_account.state == ListingState::Active as u8,
     )]
     pub listing_account: Box<Account<'info, Listing>>,
-    #[account(
-        mut,
-        constraint = listing_account.lender == *lender.key,
-    )]
     pub mint: Box<Account<'info, Mint>>,
     /// Misc
     pub system_program: Program<'info, System>,
@@ -364,18 +360,19 @@ pub struct RepossessCollateral<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-const LISTING_SIZE: usize = 1 // state
-+ 8 // amount
-+ 32 // borrower
-+ 32 // lender
-+ 4 // basis_points
-+ 8 // duration
-+ 8 // start_date
-+ 32 // escrow
-+ 32 // mint
-+ 1 // bump
-+ 1 // escrow bump
-+ 120; // padding
+const LISTING_SIZE: usize = 8 + // key
+1 + // state
+8 + // amount
+32 + // borrower
+32 + // lender
+4 + // basis_points
+8 + // duration
+8 + // start_date
+32 + // escrow
+32 + // mint
+1 + // bump
+1 + // escrow bump
+220; // padding
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
 pub enum ListingState {

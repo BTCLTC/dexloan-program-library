@@ -7,7 +7,11 @@ import {
   View,
   Link as SpectrumLink,
 } from "@adobe/react-spectrum";
-import { useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
+import {
+  useConnection,
+  useAnchorWallet,
+  useWallet,
+} from "@solana/wallet-adapter-react";
 import type { NextPage } from "next";
 import { useMutation, useQueryClient } from "react-query";
 import { toast } from "react-toastify";
@@ -26,6 +30,7 @@ import { Main } from "../components/layout";
 
 const Manage: NextPage = () => {
   const { connection } = useConnection();
+  const wallet = useWallet();
   const anchorWallet = useAnchorWallet();
 
   const loansQueryResult = useLoansQuery(connection, anchorWallet);
@@ -167,13 +172,26 @@ const LoanCard: React.FC<LoanCardProps> = ({
   uri,
 }) => {
   const { connection } = useConnection();
+  const wallet = useWallet();
   const anchorWallet = useAnchorWallet();
   const queryClient = useQueryClient();
 
   const mutation = useMutation(
-    () => {
-      if (anchorWallet) {
-        return api.repossessCollateral(connection, anchorWallet, mint, listing);
+    async () => {
+      if (anchorWallet && wallet.publicKey) {
+        const lenderTokenAccount = await api.getOrCreateTokenAccount(
+          connection,
+          wallet,
+          mint
+        );
+
+        return api.repossessCollateral(
+          connection,
+          anchorWallet,
+          lenderTokenAccount,
+          mint,
+          listing
+        );
       }
       throw new Error("Not ready");
     },

@@ -282,3 +282,41 @@ export async function repayLoan(
     },
   });
 }
+
+export async function repossessCollateral(
+  connection: anchor.web3.Connection,
+  wallet: AnchorWallet,
+  mint: anchor.web3.PublicKey,
+  listingAccount: anchor.web3.PublicKey
+) {
+  const provider = getProvider(connection, wallet as typeof anchor.Wallet);
+  const program = getProgram(provider);
+
+  const [escrowAccount] = await anchor.web3.PublicKey.findProgramAddress(
+    [Buffer.from("escrow"), mint.toBuffer()],
+    splToken.ASSOCIATED_TOKEN_PROGRAM_ID
+  );
+
+  const [lenderTokenAccount] = await anchor.web3.PublicKey.findProgramAddress(
+    [
+      wallet.publicKey.toBuffer(),
+      splToken.TOKEN_PROGRAM_ID.toBuffer(),
+      mint.toBuffer(),
+    ],
+    splToken.ASSOCIATED_TOKEN_PROGRAM_ID
+  );
+
+  await program.rpc.repossessCollateral({
+    accounts: {
+      escrowAccount,
+      mint,
+      lender: wallet.publicKey,
+      lenderTokenAccount,
+      listingAccount,
+      systemProgram: anchor.web3.SystemProgram.programId,
+      tokenProgram: splToken.TOKEN_PROGRAM_ID,
+      clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
+      rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+    },
+  });
+}

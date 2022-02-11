@@ -158,14 +158,49 @@ interface LoanCardProps {
 
 const LoanCard: React.FC<LoanCardProps> = ({
   amount,
-  name,
-  mint,
   basisPoints,
   duration,
+  listing,
+  mint,
+  name,
   startDate,
   uri,
 }) => {
-  // TODO - reposess
+  const { connection } = useConnection();
+  const anchorWallet = useAnchorWallet();
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation(
+    () => {
+      if (anchorWallet) {
+        return api.repossessCollateral(connection, anchorWallet, mint, listing);
+      }
+      throw new Error("Not ready");
+    },
+    {
+      onError(err) {
+        console.error(err);
+        if (err instanceof Error) {
+          toast.error("Error: " + err.message);
+        }
+      },
+      onSuccess() {
+        toast.success("Collateral repossessed.");
+
+        queryClient.setQueryData(
+          ["loans", anchorWallet?.publicKey.toBase58()],
+          (loans: any[] | undefined) => {
+            if (!loans) return [];
+
+            return loans.filter(
+              (loans) =>
+                loans.listing.publicKey.toBase58() !== listing.toBase58()
+            );
+          }
+        );
+      },
+    }
+  );
 
   return (
     <Card uri={uri}>
@@ -196,7 +231,11 @@ const LoanCard: React.FC<LoanCardProps> = ({
       <Divider size="S" marginTop="size-600" />
       <Flex direction="row" justifyContent="end">
         {utils.hasExpired(startDate, duration) ? (
-          <Button marginY="size-200" variant="primary" onPress={() => {}}>
+          <Button
+            marginY="size-200"
+            variant="primary"
+            onPress={() => mutation.mutate()}
+          >
             Repossess
           </Button>
         ) : (

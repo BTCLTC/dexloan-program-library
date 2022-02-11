@@ -25,7 +25,8 @@ export function yieldGenerated(
 ): number {
   const now = Date.now() / 1000;
   const elapsed = now - startDate;
-  const proRataInterestRate = (basisPoints / 100 / SECONDS_PER_YEAR) * elapsed;
+  const proRataInterestRate =
+    (basisPoints / 10_000 / SECONDS_PER_YEAR) * elapsed;
   return (amount * proRataInterestRate) / anchor.web3.LAMPORTS_PER_SOL;
 }
 

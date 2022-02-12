@@ -20,12 +20,7 @@ import "react-toastify/dist/ReactToastify.css";
 import "./globals.css";
 
 function MyApp({ Component, pageProps }: AppProps) {
-  // You can also provide a custom RPC endpoint
-  const endpoint = anchor.web3.clusterApiUrl("devnet"); // "http://localhost:8899";
-
-  // @solana/wallet-adapter-wallets includes all the adapters but supports tree shaking and lazy loading --
-  // Only the wallets you configure here will be compiled into your application, and only the dependencies
-  // of wallets that your users connect to will be loaded
+  const endpoint = "https://psytrbhymqlkfrhudd.dev.genesysgo.net:8899/"; // "https://ssc-dao.genesysgo.net/";
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
   const queryClient = useMemo(() => new QueryClient(), []);
 

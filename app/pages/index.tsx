@@ -17,11 +17,11 @@ import {
 import { useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import type { NextPage } from "next";
 import { useRouter } from "next/router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "react-query";
 import { toast } from "react-toastify";
 import * as utils from "../utils";
-import * as api from "../lib/api";
+import * as web3 from "../lib/web3";
 import { useListingsQuery } from "../hooks/query";
 import { useWalletConnect } from "../components/button";
 import { Card, CardFlexContainer } from "../components/card";
@@ -29,31 +29,32 @@ import { LoadingPlaceholder } from "../components/progress";
 import { Body, Heading, Typography } from "../components/typography";
 import { Main } from "../components/layout";
 
+interface Listing {
+  publicKey: anchor.web3.PublicKey;
+  account: {
+    amount: anchor.BN;
+    basisPoints: number;
+    borrower: anchor.web3.PublicKey;
+    duration: anchor.BN;
+    escrow: anchor.web3.PublicKey;
+    mint: anchor.web3.PublicKey;
+    state: number;
+  };
+}
+
 const Listings: NextPage = () => {
-  const router = useRouter();
   const { connection } = useConnection();
   const anchorWallet = useAnchorWallet();
   const [handleConnect] = useWalletConnect();
   const queryClient = useQueryClient();
   const queryResult = useListingsQuery(connection);
 
-  const [selectedListing, setDialog] = useState<{
-    publicKey: anchor.web3.PublicKey;
-    account: {
-      amount: anchor.BN;
-      basisPoints: number;
-      borrower: anchor.web3.PublicKey;
-      duration: anchor.BN;
-      escrow: anchor.web3.PublicKey;
-      mint: anchor.web3.PublicKey;
-      state: number;
-    };
-  } | null>(null);
+  const [selectedListing, setDialog] = useState<Listing | null>(null);
 
   const mutation = useMutation(
     () => {
       if (anchorWallet && selectedListing) {
-        return api.createLoan(
+        return web3.createLoan(
           connection,
           anchorWallet,
           selectedListing.account.mint,
@@ -72,7 +73,7 @@ const Listings: NextPage = () => {
 
         setDialog(null);
 
-        router.push("/manage");
+        toast.success("Listing created");
       },
       onError(err) {
         console.error(err);
@@ -93,64 +94,63 @@ const Listings: NextPage = () => {
 
   return (
     <>
-      {queryResult.isLoading ? (
-        <LoadingPlaceholder />
-      ) : (
-        <Main>
-          <CardFlexContainer>
-            {queryResult.data?.map(
-              (item) =>
-                item && (
-                  <Card
-                    key={item?.listing.publicKey?.toBase58()}
-                    uri={item.metadata.data?.data?.uri}
-                  >
-                    <Typography>
-                      <Heading size="S">
-                        {item.metadata.data?.data?.name}
-                      </Heading>
-                      <Body size="S">
-                        Lend&nbsp;
-                        {item.listing.account.amount.toNumber() /
-                          anchor.web3.LAMPORTS_PER_SOL}
-                        &nbsp;SOL for upto&nbsp;
-                        <strong>
-                          {utils.toMonths(
-                            item.listing.account.duration.toNumber()
-                          )}
-                          &nbsp;months @&nbsp;
-                        </strong>
-                        <strong>
-                          {item.listing.account.basisPoints / 100}%
-                        </strong>
-                        &nbsp;APY.{" "}
-                        <SpectrumLink>
-                          <a
-                            href={`https://explorer.solana.com/address/${item.listing.account.mint.toBase58()}?cluster=devnet`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            View in Explorer
-                          </a>
-                        </SpectrumLink>
-                      </Body>
-                    </Typography>
-                    <Divider size="S" marginTop="size-600" />
-                    <Flex direction="row" justifyContent="end">
-                      <Button
-                        variant="cta"
-                        marginY="size-200"
-                        onPress={() => onCreateLoan(item)}
-                      >
-                        Lend
-                      </Button>
-                    </Flex>
-                  </Card>
-                )
-            )}
-          </CardFlexContainer>
-        </Main>
-      )}
+      {
+        queryResult.isLoading ? <LoadingPlaceholder /> : null
+        // <Main>
+        //   <CardFlexContainer>
+        //     {queryResult.data?.map(
+        //       (item) =>
+        //         item && (
+        //           <Card
+        //             key={item?.listing.publicKey?.toBase58()}
+        //             uri={item.metadata.data?.data?.uri}
+        //           >
+        //             <Typography>
+        //               <Heading size="S">
+        //                 {item.metadata.data?.data?.name}
+        //               </Heading>
+        //               <Body size="S">
+        //                 Lend&nbsp;
+        //                 {item.listing.account.amount.toNumber() /
+        //                   anchor.web3.LAMPORTS_PER_SOL}
+        //                 &nbsp;SOL for upto&nbsp;
+        //                 <strong>
+        //                   {utils.toMonths(
+        //                     item.listing.account.duration.toNumber()
+        //                   )}
+        //                   &nbsp;months @&nbsp;
+        //                 </strong>
+        //                 <strong>
+        //                   {item.listing.account.basisPoints / 100}%
+        //                 </strong>
+        //                 &nbsp;APY.{" "}
+        //                 <SpectrumLink>
+        //                   <a
+        //                     href={`https://explorer.solana.com/address/${item.listing.account.mint.toBase58()}?cluster=devnet`}
+        //                     target="_blank"
+        //                     rel="noreferrer"
+        //                   >
+        //                     View in Explorer
+        //                   </a>
+        //                 </SpectrumLink>
+        //               </Body>
+        //             </Typography>
+        //             <Divider size="S" marginTop="size-600" />
+        //             <Flex direction="row" justifyContent="end">
+        //               <Button
+        //                 variant="cta"
+        //                 marginY="size-200"
+        //                 onPress={() => onCreateLoan(item)}
+        //               >
+        //                 Lend
+        //               </Button>
+        //             </Flex>
+        //           </Card>
+        //         )
+        //     )}
+        //   </CardFlexContainer>
+        // </Main>
+      }
       <DialogContainer onDismiss={() => setDialog(null)}>
         {selectedListing && (
           <Dialog>

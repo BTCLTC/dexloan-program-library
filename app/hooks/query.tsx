@@ -2,7 +2,7 @@ import * as anchor from "@project-serum/anchor";
 import { AnchorWallet } from "@solana/wallet-adapter-react";
 import bs58 from "bs58";
 import { useQuery } from "react-query";
-import * as api from "../lib/api";
+import * as web3 from "../lib/web3";
 
 export function useNFTByOwnerQuery(
   connection: anchor.web3.Connection,
@@ -12,7 +12,7 @@ export function useNFTByOwnerQuery(
     ["wallet-nfts", pubkey?.toBase58()],
     () => {
       if (pubkey) {
-        return api.getNFTs(connection, pubkey);
+        return web3.getNFTs(connection, pubkey);
       }
     },
     {
@@ -22,7 +22,7 @@ export function useNFTByOwnerQuery(
   );
 }
 
-export type NFTResult = api.NFTResult;
+export type NFTResult = web3.NFTResult;
 
 export function useMetadataFileQuery(uri?: string) {
   return useQuery(
@@ -45,13 +45,13 @@ export function useListingsQuery(connection: anchor.web3.Connection) {
   return useQuery(
     ["listings"],
     () =>
-      api.getListings(connection, [
+      web3.getListings(connection, [
         {
           memcmp: {
             // filter listed
             offset: 7 + 1,
             bytes: bs58.encode(
-              new anchor.BN(api.ListingState.Listed).toArrayLike(Buffer)
+              new anchor.BN(web3.ListingState.Listed).toArrayLike(Buffer)
             ),
           },
         },
@@ -70,13 +70,13 @@ export function useListingsByOwnerQuery(
     ["listings", wallet?.publicKey.toBase58()],
     () => {
       if (wallet) {
-        return api.getListings(connection, [
+        return web3.getListings(connection, [
           {
             memcmp: {
               // filter listed
               offset: 7 + 1,
               bytes: bs58.encode(
-                new anchor.BN(api.ListingState.Listed).toArrayLike(Buffer)
+                new anchor.BN(web3.ListingState.Listed).toArrayLike(Buffer)
               ),
             },
           },
@@ -105,13 +105,13 @@ export function useLoansQuery(
     ["loans", wallet?.publicKey.toBase58()],
     () => {
       if (wallet) {
-        return api.getListings(connection, [
+        return web3.getListings(connection, [
           {
             memcmp: {
               // filter active
               offset: 7 + 1,
               bytes: bs58.encode(
-                new anchor.BN(api.ListingState.Active).toArrayLike(Buffer)
+                new anchor.BN(web3.ListingState.Active).toArrayLike(Buffer)
               ),
             },
           },
@@ -140,13 +140,13 @@ export function useBorrowingsQuery(
     ["borrowings", wallet?.publicKey.toBase58()],
     () => {
       if (wallet) {
-        return api.getListings(connection, [
+        return web3.getListings(connection, [
           {
             memcmp: {
               // filter active
               offset: 7 + 1,
               bytes: bs58.encode(
-                new anchor.BN(api.ListingState.Active).toArrayLike(Buffer)
+                new anchor.BN(web3.ListingState.Active).toArrayLike(Buffer)
               ),
             },
           },

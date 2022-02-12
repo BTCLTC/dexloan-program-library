@@ -24,7 +24,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "react-query";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "react-toastify";
-import * as api from "../lib/api";
+import * as web3 from "../lib/web3";
 import {
   useNFTByOwnerQuery,
   useMetadataFileQuery,
@@ -123,7 +123,7 @@ const BorrowDialog: React.FC<BorrowDialogProps> = ({ nft, setDialog }) => {
           duration: variables.durationMonths * 30 * 24 * 60 * 60,
         };
 
-        return api.createListing(
+        return web3.createListing(
           connection,
           anchorWallet,
           nft.accountInfo.data.mint,

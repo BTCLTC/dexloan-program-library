@@ -30,6 +30,23 @@
     "@ethersproject/logger" "^5.5.0"
     "hash.js" "1.1.7"
 
+"@metaplex-foundation/mpl-core@^0.0.2":
+  "integrity" "sha512-UUJ4BlYiWdDegAWmjsNQiNehwYU3QfSFWs3sv4VX0J6/ZrQ28zqosGhQ+I2ZCTEy216finJ82sZWNjuwSWCYyQ=="
+  "resolved" "https://registry.npmjs.org/@metaplex-foundation/mpl-core/-/mpl-core-0.0.2.tgz"
+  "version" "0.0.2"
+  dependencies:
+    "@solana/web3.js" "^1.31.0"
+    "bs58" "^4.0.1"
+
+"@metaplex-foundation/mpl-token-metadata@^1.2.4":
+  "integrity" "sha512-FI+VOI5ctlny4UiotvF/xGcSHuXYO0ihgR/GnZfwF5hJ+dx/fhsKmOZsABshMBKUpANhU/3O2TIM5scAGExTEw=="
+  "resolved" "https://registry.npmjs.org/@metaplex-foundation/mpl-token-metadata/-/mpl-token-metadata-1.2.4.tgz"
+  "version" "1.2.4"
+  dependencies:
+    "@metaplex-foundation/mpl-core" "^0.0.2"
+    "@solana/spl-token" "^0.1.8"
+    "@solana/web3.js" "^1.31.0"
+
 "@project-serum/anchor@^0.20.1":
   "integrity" "sha512-2TuBmGUn9qeYz6sJINJlElrBuPsaUAtYyUsJ3XplEBf1pczrANAgs5ceJUFzdiqGEWLn+84ObSdBeChT/AXYFA=="
   "resolved" "https://registry.npmjs.org/@project-serum/anchor/-/anchor-0.20.1.tgz"
@@ -77,7 +94,7 @@
     "buffer-layout" "^1.2.0"
     "dotenv" "10.0.0"
 
-"@solana/web3.js@^1.17.0", "@solana/web3.js@^1.2.0", "@solana/web3.js@^1.21.0":
+"@solana/web3.js@^1.17.0", "@solana/web3.js@^1.2.0", "@solana/web3.js@^1.21.0", "@solana/web3.js@^1.31.0":
   "integrity" "sha512-jquZ/VBvM3zXAaTJvdWd9mlP0WiZaZqjji0vw5UAsb5IKIossrLhHtyUqMfo41Qkdwu1aVwf7YWG748i4XIJnw=="
   "resolved" "https://registry.npmjs.org/@solana/web3.js/-/web3.js-1.32.0.tgz"
   "version" "1.32.0"

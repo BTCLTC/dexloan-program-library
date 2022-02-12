@@ -16,7 +16,7 @@ import type { NextPage } from "next";
 import { useMutation, useQueryClient } from "react-query";
 import { toast } from "react-toastify";
 import * as utils from "../utils";
-import * as api from "../lib/api";
+import * as web3 from "../lib/web3";
 import {
   useLoansQuery,
   useBorrowingsQuery,
@@ -179,13 +179,13 @@ const LoanCard: React.FC<LoanCardProps> = ({
   const mutation = useMutation(
     async () => {
       if (anchorWallet && wallet.publicKey) {
-        const lenderTokenAccount = await api.getOrCreateTokenAccount(
+        const lenderTokenAccount = await web3.getOrCreateTokenAccount(
           connection,
           wallet,
           mint
         );
 
-        return api.repossessCollateral(
+        return web3.repossessCollateral(
           connection,
           anchorWallet,
           lenderTokenAccount,
@@ -299,7 +299,7 @@ const BorrowingCard: React.FC<BorrowingCardProps> = ({
   const mutation = useMutation(
     () => {
       if (anchorWallet) {
-        return api.repayLoan(
+        return web3.repayLoan(
           connection,
           anchorWallet,
           mint,
@@ -403,7 +403,7 @@ const ListedCard: React.FC<ListingCardProps> = ({
   const mutation = useMutation(
     () => {
       if (anchorWallet) {
-        return api.cancelListing(
+        return web3.cancelListing(
           connection,
           anchorWallet,
           mint,

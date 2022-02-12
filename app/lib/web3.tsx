@@ -2,11 +2,7 @@ import * as anchor from "@project-serum/anchor";
 import * as splToken from "@solana/spl-token";
 import { TokenAccount } from "@metaplex-foundation/mpl-core";
 import { Metadata } from "@metaplex-foundation/mpl-token-metadata";
-import {
-  AnchorWallet,
-  Wallet,
-  WalletContextState,
-} from "@solana/wallet-adapter-react";
+import { AnchorWallet, WalletContextState } from "@solana/wallet-adapter-react";
 import idl from "../idl.json";
 import type { Dexloan } from "../dexloan";
 
@@ -128,7 +124,7 @@ export async function getNFTs(
         account?.metadata.data &&
         account?.metadata.data.data?.uri &&
         account?.metadata.data.data.uri.trim().length
-    ) as { accountInfo: TokenAccount; metadata: Metadata }[];
+    ) as NFTResult[];
 }
 
 class ListingOptions {
@@ -306,7 +302,7 @@ export async function getOrCreateTokenAccount(
   );
 
   const receiverAccount = await connection.getAccountInfo(tokenAccount);
-  console.log("receiverAccount", receiverAccount);
+
   if (!receiverAccount) {
     const transaction = new anchor.web3.Transaction({
       feePayer: wallet.publicKey,

@@ -39,8 +39,14 @@ export async function getListings(
   const program = getProgram(getProvider(connection, anchor.Wallet));
   const listings = await program.account.listing.all(filter);
 
+  const whitelist = (await import("../public/whitelist.json")).default;
+
+  const filteredListings = listings.filter((listing) =>
+    whitelist.includes(listing.account.mint.toBase58())
+  );
+
   const metadataAddresses = await Promise.all(
-    listings.map((listing) => Metadata.getPDA(listing.account.mint))
+    filteredListings.map((listing) => Metadata.getPDA(listing.account.mint))
   );
 
   const rawMetadataAccounts = await connection.getMultipleAccountsInfo(
@@ -58,7 +64,7 @@ export async function getListings(
 
           return {
             metadata,
-            listing: listings[index],
+            listing: filteredListings[index],
           };
         } catch {
           return null;
@@ -90,8 +96,14 @@ export async function getNFTs(
     accounts.filter((account) => account.data.amount.toNumber() === 1)
   );
 
+  const whitelist = (await import("../public/whitelist.json")).default;
+
+  const filteredAccounts = tokenAccounts.filter((account) =>
+    whitelist.includes(account.data.mint.toBase58())
+  );
+
   const metadataAddresses = await Promise.all(
-    tokenAccounts.map((account) => Metadata.getPDA(account.data.mint))
+    filteredAccounts.map((account) => Metadata.getPDA(account.data.mint))
   );
 
   const rawMetadataAccounts = await connection.getMultipleAccountsInfo(
@@ -108,7 +120,7 @@ export async function getNFTs(
 
         return {
           metadata,
-          accountInfo: tokenAccounts[index],
+          accountInfo: filteredAccounts[index],
         };
       } catch {
         return null;

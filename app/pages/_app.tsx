@@ -19,8 +19,13 @@ import { Nav } from "../components/nav";
 import "react-toastify/dist/ReactToastify.css";
 import "./globals.css";
 
+const endpoints = {
+  devnet: "https://psytrbhymqlkfrhudd.dev.genesysgo.net:8899/",
+  mainnet: "https://ssc-dao.genesysgo.net/",
+};
+
 function MyApp({ Component, pageProps }: AppProps) {
-  const endpoint = "https://psytrbhymqlkfrhudd.dev.genesysgo.net:8899/"; // "https://ssc-dao.genesysgo.net/";
+  const endpoint = endpoints.mainnet;
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
   const queryClient = useMemo(() => new QueryClient(), []);
 

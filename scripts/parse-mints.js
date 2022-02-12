@@ -3,7 +3,7 @@ const fs = require("fs");
 const bs58 = require("bs58");
 const { Metadata } = require("@metaplex-foundation/mpl-token-metadata");
 
-const mints = require("../app/chicken-tribe-mints.json");
+const mints = require("../app/public/whitelist");
 const connection = new anchor.web3.Connection("https://ssc-dao.genesysgo.net/");
 
 async function parseMints() {

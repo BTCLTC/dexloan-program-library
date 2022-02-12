@@ -21,11 +21,33 @@ async function getMintsByUpdateAuthority(updateAuthority) {
     },
   });
 
-  const mints = accounts.map((value) => bs58.encode(value.account.data));
+  const mints = accounts
+    .map((value) => bs58.encode(value.account.data))
+    .reduce((acc, curr) => {
+      acc[curr] = curr;
+      return acc;
+    }, {});
+
+  let currentMintsList = [];
+
+  try {
+    currentMintsList = require("../app/public/whitelist.json");
+  } catch {}
+
+  const allMints = [...currentMintsList];
+
+  for (const strpubkey of currentMintsList) {
+    if (!mints[strpubkey]) {
+      console.log("Missing mint: ", strpubkey);
+      allMints.push(strpubkey);
+    }
+  }
+
+  console.log(`${mintsList.length - allMints.length} mints added.`);
 
   fs.writeFileSync(
-    "./app/chicken-tribe-mints.json",
-    JSON.stringify(mints, null, 2)
+    "./app/public/whitelist.json",
+    JSON.stringify(allMints, null, 2)
   );
 }
 

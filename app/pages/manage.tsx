@@ -165,6 +165,7 @@ const LoanCard: React.FC<LoanCardProps> = ({
   amount,
   basisPoints,
   duration,
+  escrow,
   listing,
   mint,
   name,
@@ -188,8 +189,9 @@ const LoanCard: React.FC<LoanCardProps> = ({
         return web3.repossessCollateral(
           connection,
           anchorWallet,
-          lenderTokenAccount,
           mint,
+          escrow,
+          lenderTokenAccount,
           listing
         );
       }
@@ -203,7 +205,7 @@ const LoanCard: React.FC<LoanCardProps> = ({
         }
       },
       onSuccess() {
-        toast.success("Collateral repossessed.");
+        toast.success("NFT repossessed.");
 
         queryClient.setQueryData(
           ["loans", anchorWallet?.publicKey.toBase58()],

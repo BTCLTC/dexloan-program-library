@@ -27,7 +27,10 @@ export function yieldGenerated(
   const elapsed = now - startDate;
   const proRataInterestRate =
     (basisPoints / 10_000 / SECONDS_PER_YEAR) * elapsed;
-  return (amount * proRataInterestRate) / anchor.web3.LAMPORTS_PER_SOL;
+  return Math.max(
+    0,
+    (amount * proRataInterestRate) / anchor.web3.LAMPORTS_PER_SOL
+  );
 }
 
 export function totalAmount(

@@ -1,6 +1,6 @@
-export type Dexloan = {
+export type DexloanListings = {
   "version": "0.1.0",
-  "name": "dexloan",
+  "name": "dexloan_listings",
   "instructions": [
     {
       "name": "initListing",
@@ -9,11 +9,6 @@ export type Dexloan = {
           "name": "borrower",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "borrowerDepositTokenAccount",
-          "isMut": true,
-          "isSigner": false
         },
         {
           "name": "listingAccount",
@@ -46,14 +41,7 @@ export type Dexloan = {
           "isSigner": false
         }
       ],
-      "args": [
-        {
-          "name": "options",
-          "type": {
-            "defined": "ListingOptions"
-          }
-        }
-      ]
+      "args": []
     },
     {
       "name": "makeListing",
@@ -409,9 +397,9 @@ export type Dexloan = {
   ]
 };
 
-export const IDL: Dexloan = {
+export const IDL: DexloanListings = {
   "version": "0.1.0",
-  "name": "dexloan",
+  "name": "dexloan_listings",
   "instructions": [
     {
       "name": "initListing",
@@ -420,11 +408,6 @@ export const IDL: Dexloan = {
           "name": "borrower",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "borrowerDepositTokenAccount",
-          "isMut": true,
-          "isSigner": false
         },
         {
           "name": "listingAccount",
@@ -457,14 +440,7 @@ export const IDL: Dexloan = {
           "isSigner": false
         }
       ],
-      "args": [
-        {
-          "name": "options",
-          "type": {
-            "defined": "ListingOptions"
-          }
-        }
-      ]
+      "args": []
     },
     {
       "name": "makeListing",

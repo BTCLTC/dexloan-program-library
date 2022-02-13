@@ -4,11 +4,15 @@ import { TokenAccount } from "@metaplex-foundation/mpl-core";
 import { Metadata } from "@metaplex-foundation/mpl-token-metadata";
 import { AnchorWallet, WalletContextState } from "@solana/wallet-adapter-react";
 import idl from "../idl.json";
-import type { Dexloan } from "../dexloan";
+import type { DexloanListings } from "../dexloan";
 
-export function getProgram(provider: anchor.Provider): anchor.Program<Dexloan> {
+export function getProgram(
+  provider: anchor.Provider
+): anchor.Program<DexloanListings> {
   // @ts-ignore
-  const programID = new anchor.web3.PublicKey(idl.metadata.address);
+  const programID = new anchor.web3.PublicKey(
+    "C5dU4Ye5RkHkhdim3mfWLsh8t8i45pRuxMrAWrp5SQZf"
+  );
   return new anchor.Program(idl as any, programID, provider);
 }
 
@@ -191,16 +195,21 @@ export async function createListing(
     systemProgram: anchor.web3.SystemProgram.programId,
   };
 
+  let listing;
+
   try {
-    await program.account.listing.fetch(listingAccount);
-    await program.rpc.makeListing(listingOptions, {
-      accounts,
-    });
-  } catch {
-    await program.rpc.initListing(listingOptions, {
+    listing = await program.account.listing.fetch(listingAccount);
+  } catch {}
+
+  if (!listing) {
+    await program.rpc.initListing({
       accounts,
     });
   }
+
+  await program.rpc.makeListing(listingOptions, {
+    accounts,
+  });
 }
 
 export async function createLoan(

@@ -1,12 +1,12 @@
 [package]
-name = "dexloan"
+name = "dexloan_listings"
 version = "0.1.0"
 description = "Created with Anchor"
 edition = "2018"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "dexloan"
+name = "dexloan_listings"
 
 [features]
 no-entrypoint = []

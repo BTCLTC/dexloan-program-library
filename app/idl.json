@@ -1,6 +1,6 @@
 {
   "version": "0.1.0",
-  "name": "dexloan",
+  "name": "dexloan_listings",
   "instructions": [
     {
       "name": "initListing",
@@ -9,11 +9,6 @@
           "name": "borrower",
           "isMut": false,
           "isSigner": true
-        },
-        {
-          "name": "borrowerDepositTokenAccount",
-          "isMut": true,
-          "isSigner": false
         },
         {
           "name": "listingAccount",
@@ -46,14 +41,7 @@
           "isSigner": false
         }
       ],
-      "args": [
-        {
-          "name": "options",
-          "type": {
-            "defined": "ListingOptions"
-          }
-        }
-      ]
+      "args": []
     },
     {
       "name": "makeListing",
@@ -408,6 +396,6 @@
     }
   ],
   "metadata": {
-    "address": "Da2AAtcBWTQ1dQdEQWzqSRpF9tCB6wWVbCAEf2P3iAzb"
+    "address": "C5dU4Ye5RkHkhdim3mfWLsh8t8i45pRuxMrAWrp5SQZf"
   }
 }

@@ -1,8 +1,19 @@
-[programs.localnet]
-dexloan = "Da2AAtcBWTQ1dQdEQWzqSRpF9tCB6wWVbCAEf2P3iAzb"
+anchor_version = "0.20.1"
 
 [registry]
 url = "https://anchor.projectserum.com"
+
+[features]
+seeds = true
+
+[programs.localnet]
+dexloan_listings = "C5dU4Ye5RkHkhdim3mfWLsh8t8i45pRuxMrAWrp5SQZf"
+
+[programs.devnet]
+dexloan_listings = "C5dU4Ye5RkHkhdim3mfWLsh8t8i45pRuxMrAWrp5SQZf"
+
+[programs.mainnet]
+dexloan_listings = "C5dU4Ye5RkHkhdim3mfWLsh8t8i45pRuxMrAWrp5SQZf"
 
 [provider]
 cluster = "localnet"

@@ -1,9 +1,11 @@
 import * as anchor from "@project-serum/anchor";
 import * as splToken from "@solana/spl-token";
-import { Dexloan } from "../target/types/dexloan";
+import { DexloanListings } from "../target/types/dexloan_listings";
 
-export function getProgram(provider: anchor.Provider): anchor.Program<Dexloan> {
-  const idl = require("../target/idl/dexloan.json");
+export function getProgram(
+  provider: anchor.Provider
+): anchor.Program<DexloanListings> {
+  const idl = require("../target/idl/dexloan_listings.json");
   const programID = new anchor.web3.PublicKey(idl.metadata.address);
   return new anchor.Program(idl, programID, provider);
 }

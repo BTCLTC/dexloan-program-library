@@ -104,18 +104,19 @@ export async function initListing(
   listingOptions.basisPoints = new anchor.BN(options.basisPoints);
   listingOptions.duration = new anchor.BN(options.duration);
 
-  await program.rpc.initListing(listingOptions, {
-    accounts: {
-      escrowAccount,
-      listingAccount,
-      borrower: keypair.publicKey,
-      borrowerDepositTokenAccount: associatedAddress.address,
-      mint: mint.publicKey,
-      tokenProgram: splToken.TOKEN_PROGRAM_ID,
-      rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-      systemProgram: anchor.web3.SystemProgram.programId,
-    },
-  });
+  const accounts = {
+    escrowAccount,
+    listingAccount,
+    borrower: keypair.publicKey,
+    borrowerDepositTokenAccount: associatedAddress.address,
+    mint: mint.publicKey,
+    tokenProgram: splToken.TOKEN_PROGRAM_ID,
+    rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+    systemProgram: anchor.web3.SystemProgram.programId,
+  };
+
+  await program.rpc.initListing({ accounts });
+  await program.rpc.makeListing(listingOptions, { accounts });
 
   return {
     mint,

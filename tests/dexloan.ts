@@ -335,6 +335,95 @@ describe("dexloan", () => {
       assert.equal(error.toString(), "A raw constraint was violated");
     }
   });
+
+  it("Will not allow an active listing to be relisted", async () => {
+    const options = {
+      amount: anchor.web3.LAMPORTS_PER_SOL,
+      basisPoints: 500,
+      duration: 60,
+    };
+    const borrower = await helpers.initListing(connection, options);
+    await helpers.createLoan(connection, borrower);
+
+    const listing = await borrower.program.account.listing.fetch(
+      borrower.listingAccount
+    );
+
+    const listingOptions = new helpers.ListingOptions();
+    listingOptions.amount = new anchor.BN(options.amount);
+    listingOptions.basisPoints = new anchor.BN(options.basisPoints);
+    listingOptions.duration = new anchor.BN(options.duration);
+
+    try {
+      await borrower.program.rpc.makeListing(listingOptions, {
+        accounts: {
+          borrower: borrower.keypair.publicKey,
+          borrowerDepositTokenAccount: borrower.associatedAddress.address,
+          escrowAccount: listing.escrow,
+          listingAccount: borrower.listingAccount,
+          mint: listing.mint,
+          tokenProgram: splToken.TOKEN_PROGRAM_ID,
+          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        },
+      });
+      assert.ok(false);
+    } catch (error) {
+      assert.equal(error.toString(), "Invalid state");
+    }
+  });
+
+  it("Will allow an NFT to be relisted after being cancelled", async () => {
+    const options = {
+      amount: anchor.web3.LAMPORTS_PER_SOL,
+      basisPoints: 500,
+      duration: 60,
+    };
+    const borrower = await helpers.initListing(connection, options);
+
+    await borrower.program.rpc.cancelListing({
+      accounts: {
+        listingAccount: borrower.listingAccount,
+        escrowAccount: borrower.escrowAccount,
+        borrower: borrower.keypair.publicKey,
+        borrowerDepositTokenAccount: borrower.associatedAddress.address,
+        mint: borrower.mint.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        tokenProgram: splToken.TOKEN_PROGRAM_ID,
+      },
+    });
+
+    const listing = await borrower.program.account.listing.fetch(
+      borrower.listingAccount
+    );
+
+    const listingOptions = new helpers.ListingOptions();
+    listingOptions.amount = new anchor.BN(anchor.web3.LAMPORTS_PER_SOL * 2);
+    listingOptions.basisPoints = new anchor.BN(5000);
+    listingOptions.duration = new anchor.BN(120);
+
+    await borrower.program.rpc.makeListing(listingOptions, {
+      accounts: {
+        borrower: borrower.keypair.publicKey,
+        borrowerDepositTokenAccount: borrower.associatedAddress.address,
+        escrowAccount: listing.escrow,
+        listingAccount: borrower.listingAccount,
+        mint: listing.mint,
+        tokenProgram: splToken.TOKEN_PROGRAM_ID,
+        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      },
+    });
+
+    const reListing = await borrower.program.account.listing.fetch(
+      borrower.listingAccount
+    );
+
+    assert.equal(reListing.amount, anchor.web3.LAMPORTS_PER_SOL * 2);
+    assert.equal(reListing.basisPoints, 5000);
+    assert.equal(reListing.duration, 120);
+    assert.equal(reListing.state, 1);
+  });
 });
 
 async function wait(seconds) {

@@ -1,4 +1,14 @@
+anchor_version = "0.20.1"
+
 [workspace]
-members = [
-    "programs/*"
-]
+members = ["programs/*"]
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+
+[programs.mainnet]
+dexloan = "Da2AAtcBWTQ1dQdEQWzqSRpF9tCB6wWVbCAEf2P3iAzb"
+
+[programs.localnet]
+dexloan = "Da2AAtcBWTQ1dQdEQWzqSRpF9tCB6wWVbCAEf2P3iAzb"

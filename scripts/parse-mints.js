@@ -13,6 +13,7 @@ async function parseMints() {
   console.log(`Processing ${mints.length} mints...`);
 
   for (const mint of mints) {
+    console.log("mint: ", mint);
     const metadataPDA = await Metadata.getPDA(new anchor.web3.PublicKey(mint));
     const metadata = await Metadata.load(connection, metadataPDA);
 

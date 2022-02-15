@@ -36,14 +36,14 @@ async function getMintsByUpdateAuthority(updateAuthority) {
 
   const allMints = [...currentMintsList];
 
-  for (const strpubkey of currentMintsList) {
-    if (!mints[strpubkey]) {
+  for (const strpubkey in mints) {
+    if (!allMints[strpubkey]) {
       console.log("Missing mint: ", strpubkey);
       allMints.push(strpubkey);
     }
   }
 
-  console.log(`${mintsList.length - allMints.length} mints added.`);
+  console.log(`${allMints.length - currentMintsList.length} mints added.`);
 
   fs.writeFileSync(
     "./app/public/whitelist.json",
@@ -51,4 +51,6 @@ async function getMintsByUpdateAuthority(updateAuthority) {
   );
 }
 
-getMintsByUpdateAuthority("5fm1MDn52ygECVK5Aqixb9CCwbmpUb3omjetmvtDbD3r");
+// Primary update authority 5fm1MDn52ygECVK5Aqixb9CCwbmpUb3omjetmvtDbD3r
+// Gumdrop Fg3fDz9fQMFrhmo2pg3BMgXjTFEN8rMZNzv1sKthwfkJ
+getMintsByUpdateAuthority("Fg3fDz9fQMFrhmo2pg3BMgXjTFEN8rMZNzv1sKthwfkJ");

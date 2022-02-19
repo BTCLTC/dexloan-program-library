@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
-declare_id!("C5dU4Ye5RkHkhdim3mfWLsh8t8i45pRuxMrAWrp5SQZf");
+declare_id!("H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj");
 
 #[program]
 pub mod dexloan_listings {
@@ -10,15 +10,30 @@ pub mod dexloan_listings {
     pub const SECONDS_PER_YEAR: f64 = 31_536_000.0; 
 
     pub fn init_listing(
-        ctx: Context<InitListing>
+        ctx: Context<InitListing>,
+        options: ListingOptions
     ) -> ProgramResult {
         let listing = &mut ctx.accounts.listing_account;
-
+        // Init
         listing.bump = *ctx.bumps.get("listing_account").unwrap();
         listing.mint = ctx.accounts.mint.key();
         listing.escrow = ctx.accounts.escrow_account.key();
         listing.escrow_bump = *ctx.bumps.get("escrow_account").unwrap();
-        listing.state = ListingState::Initialized as u8;
+        // List
+        listing.amount = options.amount;
+        listing.basis_points = options.basis_points;
+        listing.duration = options.duration;
+        listing.state = ListingState::Listed as u8;
+        listing.borrower = ctx.accounts.borrower.key();
+        // Transfer
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_accounts = anchor_spl::token::Transfer {
+            from: ctx.accounts.borrower_deposit_token_account.to_account_info(),
+            to: ctx.accounts.escrow_account.to_account_info(),
+            authority: ctx.accounts.borrower.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        anchor_spl::token::transfer(cpi_ctx, 1)?;
 
         Ok(())
     }
@@ -32,13 +47,13 @@ pub mod dexloan_listings {
         if listing.state == ListingState::Listed as u8 || listing.state == ListingState::Active as u8 {
             return Err(ErrorCode::InvalidState.into())
         }
-
+        // List
         listing.amount = options.amount;
         listing.basis_points = options.basis_points;
         listing.duration = options.duration;
         listing.state = ListingState::Listed as u8;
         listing.borrower = ctx.accounts.borrower.key();
-
+        // Transfer
         let cpi_program = ctx.accounts.token_program.to_account_info();
         let cpi_accounts = anchor_spl::token::Transfer {
             from: ctx.accounts.borrower_deposit_token_account.to_account_info(),
@@ -47,6 +62,7 @@ pub mod dexloan_listings {
         };
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
         anchor_spl::token::transfer(cpi_ctx, 1)?;
+
         Ok(())
     }
 
@@ -186,9 +202,15 @@ pub struct ListingOptions {
 }
 
 #[derive(Accounts)]
+#[instruction(options: ListingOptions)]
 pub struct InitListing<'info> {
     /// The person who is listing the loan
     pub borrower: Signer<'info>,
+    #[account(
+        mut,
+        constraint = borrower_deposit_token_account.mint == mint.key(),
+    )]
+    pub borrower_deposit_token_account: Box<Account<'info, TokenAccount>>,
     /// The new listing account
     #[account(
         init,

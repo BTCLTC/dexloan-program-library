@@ -3,17 +3,17 @@ anchor_version = "0.20.1"
 [registry]
 url = "https://anchor.projectserum.com"
 
-[features]
-seeds = true
+# [features]
+# seeds = true
 
 [programs.localnet]
-dexloan_listings = "C5dU4Ye5RkHkhdim3mfWLsh8t8i45pRuxMrAWrp5SQZf"
+dexloan_listings = "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
 
 [programs.devnet]
-dexloan_listings = "C5dU4Ye5RkHkhdim3mfWLsh8t8i45pRuxMrAWrp5SQZf"
+dexloan_listings = "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
 
 [programs.mainnet]
-dexloan_listings = "C5dU4Ye5RkHkhdim3mfWLsh8t8i45pRuxMrAWrp5SQZf"
+dexloan_listings = "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
 
 [provider]
 cluster = "localnet"

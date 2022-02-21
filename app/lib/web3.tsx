@@ -11,7 +11,7 @@ export function getProgram(
 ): anchor.Program<DexloanListings> {
   // @ts-ignore
   const programID = new anchor.web3.PublicKey(
-    "C5dU4Ye5RkHkhdim3mfWLsh8t8i45pRuxMrAWrp5SQZf"
+    "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
   );
   return new anchor.Program(idl as any, programID, provider);
 }
@@ -50,7 +50,7 @@ export async function getListings(
   );
 
   const metadataAddresses = await Promise.all(
-    filteredListings.map((listing) => Metadata.getPDA(listing.account.mint))
+    listings.map((listing) => Metadata.getPDA(listing.account.mint))
   );
 
   const rawMetadataAccounts = await connection.getMultipleAccountsInfo(
@@ -68,7 +68,7 @@ export async function getListings(
 
           return {
             metadata,
-            listing: filteredListings[index],
+            listing: listings[index],
           };
         } catch {
           return null;
@@ -107,7 +107,7 @@ export async function getNFTs(
   );
 
   const metadataAddresses = await Promise.all(
-    filteredAccounts.map((account) => Metadata.getPDA(account.data.mint))
+    tokenAccounts.map((account) => Metadata.getPDA(account.data.mint))
   );
 
   const rawMetadataAccounts = await connection.getMultipleAccountsInfo(
@@ -124,7 +124,7 @@ export async function getNFTs(
 
         return {
           metadata,
-          accountInfo: filteredAccounts[index],
+          accountInfo: tokenAccounts[index],
         };
       } catch {
         return null;
@@ -184,6 +184,13 @@ export async function createListing(
   );
 
   const listingOptions = new ListingOptions(options);
+
+  let listing;
+
+  try {
+    listing = await program.account.listing.fetch(listingAccount);
+  } catch {}
+
   const accounts = {
     escrowAccount,
     listingAccount,
@@ -195,21 +202,13 @@ export async function createListing(
     systemProgram: anchor.web3.SystemProgram.programId,
   };
 
-  let listing;
-
-  try {
-    listing = await program.account.listing.fetch(listingAccount);
-  } catch {}
-
   if (!listing) {
-    await program.rpc.initListing({
+    await program.rpc.initListing(listingOptions, { accounts });
+  } else {
+    await program.rpc.makeListing(listingOptions, {
       accounts,
     });
   }
-
-  await program.rpc.makeListing(listingOptions, {
-    accounts,
-  });
 }
 
 export async function createLoan(

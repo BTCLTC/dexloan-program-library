@@ -11,6 +11,11 @@
           "isSigner": true
         },
         {
+          "name": "borrowerDepositTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "listingAccount",
           "isMut": true,
           "isSigner": false
@@ -41,7 +46,14 @@
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "options",
+          "type": {
+            "defined": "ListingOptions"
+          }
+        }
+      ]
     },
     {
       "name": "makeListing",
@@ -396,6 +408,6 @@
     }
   ],
   "metadata": {
-    "address": "C5dU4Ye5RkHkhdim3mfWLsh8t8i45pRuxMrAWrp5SQZf"
+    "address": "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
   }
 }

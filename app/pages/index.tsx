@@ -65,6 +65,16 @@ const Listings: NextPage = () => {
     },
     {
       onSuccess() {
+        queryClient.setQueryData(["listings"], (data: any) => {
+          if (data) {
+            return data?.filter(
+              (item: any) =>
+                item.listing.publicKey.toBase58() !==
+                selectedListing?.publicKey.toBase58()
+            );
+          }
+        });
+
         queryClient.invalidateQueries([
           "loans",
           anchorWallet?.publicKey.toBase58(),

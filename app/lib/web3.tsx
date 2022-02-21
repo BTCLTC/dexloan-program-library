@@ -50,7 +50,7 @@ export async function getListings(
   );
 
   const metadataAddresses = await Promise.all(
-    listings.map((listing) => Metadata.getPDA(listing.account.mint))
+    filteredListings.map((listing) => Metadata.getPDA(listing.account.mint))
   );
 
   const rawMetadataAccounts = await connection.getMultipleAccountsInfo(
@@ -68,7 +68,7 @@ export async function getListings(
 
           return {
             metadata,
-            listing: listings[index],
+            listing: filteredListings[index],
           };
         } catch {
           return null;
@@ -107,7 +107,7 @@ export async function getNFTs(
   );
 
   const metadataAddresses = await Promise.all(
-    tokenAccounts.map((account) => Metadata.getPDA(account.data.mint))
+    filteredAccounts.map((account) => Metadata.getPDA(account.data.mint))
   );
 
   const rawMetadataAccounts = await connection.getMultipleAccountsInfo(
@@ -124,7 +124,7 @@ export async function getNFTs(
 
         return {
           metadata,
-          accountInfo: tokenAccounts[index],
+          accountInfo: filteredAccounts[index],
         };
       } catch {
         return null;

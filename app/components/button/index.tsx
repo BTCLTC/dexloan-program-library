@@ -19,10 +19,9 @@ export function useWalletConnect(): [(cb?: () => void) => void, string] {
   const handleConnect = useCallback(
     async (cb?: () => void) => {
       try {
-        if (!wallet.publicKey) {
-          await wallet.connect();
-          if (cb) cb();
-        }
+        if (!wallet.publicKey) await wallet.connect();
+        else await wallet.disconnect();
+        if (cb) cb();
       } catch {}
     },
     [wallet]

@@ -27,7 +27,7 @@ const endpoints = {
 type ENV = keyof typeof endpoints;
 
 function MyApp({ Component, pageProps }: AppProps) {
-  const endpoint = endpoints[(process.env.ENV || "devnet") as ENV];
+  const endpoint = endpoints[(process.env.NEXT_PUBLIC_ENV || "devnet") as ENV];
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
   const queryClient = useMemo(() => new QueryClient(), []);
 

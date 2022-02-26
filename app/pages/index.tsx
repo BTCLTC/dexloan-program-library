@@ -136,7 +136,7 @@ const Listings: NextPage = () => {
                         &nbsp;APY.{" "}
                         <SpectrumLink>
                           <a
-                            href={`https://explorer.solana.com/address/${item.listing.account.mint.toBase58()}?cluster=devnet`}
+                            href={`https://explorer.solana.com/address/${item.listing.account.mint.toBase58()}`}
                             target="_blank"
                             rel="noreferrer"
                           >

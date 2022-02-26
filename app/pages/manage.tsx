@@ -239,7 +239,7 @@ const LoanCard: React.FC<LoanCardProps> = ({
           &nbsp;APR.&nbsp;
           <SpectrumLink>
             <a
-              href={`https://explorer.solana.com/address/${mint}?cluster=devnet`}
+              href={`https://explorer.solana.com/address/${mint}`}
               target="_blank"
               rel="noreferrer"
             >
@@ -354,7 +354,7 @@ const BorrowingCard: React.FC<BorrowingCardProps> = ({
           &nbsp;APR.&nbsp;
           <SpectrumLink>
             <a
-              href={`https://explorer.solana.com/address/${mint}?cluster=devnet`}
+              href={`https://explorer.solana.com/address/${mint}`}
               target="_blank"
               rel="noreferrer"
             >
@@ -456,7 +456,7 @@ const ListedCard: React.FC<ListingCardProps> = ({
           &nbsp;APR.&nbsp;
           <SpectrumLink>
             <a
-              href={`https://explorer.solana.com/address/${mint}?cluster=devnet`}
+              href={`https://explorer.solana.com/address/${mint}`}
               target="_blank"
               rel="noreferrer"
             >

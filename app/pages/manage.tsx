@@ -236,7 +236,7 @@ const LoanCard: React.FC<LoanCardProps> = ({
           {utils.toMonths(duration)}
           &nbsp;months&nbsp;@&nbsp;
           <strong>{basisPoints / 100}%</strong>
-          &nbsp;APR.&nbsp;
+          &nbsp;APY.&nbsp;
           <SpectrumLink>
             <a
               href={`https://explorer.solana.com/address/${mint}`}
@@ -351,7 +351,7 @@ const BorrowingCard: React.FC<BorrowingCardProps> = ({
           {utils.toMonths(duration)}
           &nbsp;months&nbsp;@&nbsp;
           <strong>{basisPoints / 100}%</strong>
-          &nbsp;APR.&nbsp;
+          &nbsp;APY.&nbsp;
           <SpectrumLink>
             <a
               href={`https://explorer.solana.com/address/${mint}`}
@@ -453,7 +453,7 @@ const ListedCard: React.FC<ListingCardProps> = ({
           {utils.toMonths(duration)}
           &nbsp;months&nbsp;@&nbsp;
           <strong>{basisPoints / 100}%</strong>
-          &nbsp;APR.&nbsp;
+          &nbsp;APY.&nbsp;
           <SpectrumLink>
             <a
               href={`https://explorer.solana.com/address/${mint}`}

@@ -188,7 +188,7 @@ const Listings: NextPage = () => {
                 <View>
                   <Text>
                     This loan may be repaid in full at any time. Interest will
-                    be calulated on a pro-rata basis. If the borrower fails to
+                    be calculated on a pro-rata basis. If the borrower fails to
                     repay the loan before the expiry date, you may exercise the
                     right to repossess the NFT.
                   </Text>

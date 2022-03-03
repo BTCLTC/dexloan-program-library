@@ -36,6 +36,28 @@ export enum ListingState {
   Defaulted = 5,
 }
 
+export async function getListing(
+  connection: anchor.web3.Connection,
+  listing: anchor.web3.PublicKey
+) {
+  const program = getProgram(getProvider(connection, anchor.Wallet));
+  const listingAccount = await program.account.listing.fetch(listing);
+
+  const whitelist = (await import("../public/whitelist.json")).default;
+
+  if (!whitelist.includes(listingAccount.mint.toBase58())) {
+    throw new Error("Mint not whitelisted");
+  }
+
+  const metadataPDA = await Metadata.getPDA(listingAccount.mint);
+  const metadataAccount = await Metadata.load(connection, metadataPDA);
+
+  return {
+    metadata: metadataAccount,
+    listing: listingAccount,
+  };
+}
+
 export async function getListings(
   connection: anchor.web3.Connection,
   filter: anchor.web3.GetProgramAccountsFilter[] = []

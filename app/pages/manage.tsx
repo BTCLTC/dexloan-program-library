@@ -30,7 +30,6 @@ import { Main } from "../components/layout";
 
 const Manage: NextPage = () => {
   const { connection } = useConnection();
-  const wallet = useWallet();
   const anchorWallet = useAnchorWallet();
 
   const loansQueryResult = useLoansQuery(connection, anchorWallet);

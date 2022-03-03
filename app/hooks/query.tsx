@@ -41,6 +41,19 @@ export function useMetadataFileQuery(uri?: string) {
   );
 }
 
+export function useListingQuery(
+  connection: anchor.web3.Connection,
+  listing: anchor.web3.PublicKey | undefined
+) {
+  return useQuery(
+    ["listing", listing?.toBase58()],
+    () => {
+      if (listing) return web3.getListing(connection, listing);
+    },
+    { enabled: Boolean(listing) }
+  );
+}
+
 export function useListingsQuery(connection: anchor.web3.Connection) {
   return useQuery(
     ["listings"],

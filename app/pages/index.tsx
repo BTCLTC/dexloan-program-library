@@ -100,7 +100,10 @@ const Listings: NextPage = () => {
       handleConnect(() => setDialog(item.listing));
     }
   }
-
+  console.log(
+    "listings: ",
+    queryResult.data?.[0]?.listing.publicKey.toBase58()
+  );
   return (
     <>
       {queryResult.isLoading ? (

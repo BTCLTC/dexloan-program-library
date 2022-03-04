@@ -19,6 +19,8 @@ import type { NextPage } from "next";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "react-query";
 import { toast } from "react-toastify";
+
+import type { Listing } from "../types";
 import * as utils from "../utils";
 import * as web3 from "../lib/web3";
 import { useListingsQuery } from "../hooks/query";
@@ -27,19 +29,7 @@ import { Card, CardFlexContainer } from "../components/card";
 import { LoadingPlaceholder } from "../components/progress";
 import { Body, Heading, Typography } from "../components/typography";
 import { Main } from "../components/layout";
-
-interface Listing {
-  publicKey: anchor.web3.PublicKey;
-  account: {
-    amount: anchor.BN;
-    basisPoints: number;
-    borrower: anchor.web3.PublicKey;
-    duration: anchor.BN;
-    escrow: anchor.web3.PublicKey;
-    mint: anchor.web3.PublicKey;
-    state: number;
-  };
-}
+import { LoanDialog } from "../components/dialog";
 
 const Listings: NextPage = () => {
   const { connection } = useConnection();
@@ -164,60 +154,13 @@ const Listings: NextPage = () => {
           </CardFlexContainer>
         </Main>
       )}
-      <DialogContainer onDismiss={() => setDialog(null)}>
-        {selectedListing && (
-          <Dialog>
-            <DialogHeading>Loan</DialogHeading>
-            <Header>
-              Lending&nbsp;
-              <strong>
-                {selectedListing.account.amount.toNumber() /
-                  anchor.web3.LAMPORTS_PER_SOL}{" "}
-                SOL
-              </strong>
-              &nbsp;@&nbsp;
-              <strong>{selectedListing.account.basisPoints / 100}% APY</strong>
-            </Header>
-            <Content>
-              {mutation.isLoading ? (
-                <Flex direction="row" justifyContent="center" width="100%">
-                  <ProgressCircle
-                    isIndeterminate
-                    aria-label="Loading…"
-                    marginY="size-200"
-                  />
-                </Flex>
-              ) : (
-                <View>
-                  <Text>
-                    This loan may be repaid in full at any time. Interest will
-                    be calculated on a pro-rata basis. If the borrower fails to
-                    repay the loan before the expiry date, you may exercise the
-                    right to repossess the NFT.
-                  </Text>
-                </View>
-              )}
-            </Content>
-            <Divider />
-            <ButtonGroup>
-              <Button
-                isDisabled={mutation.isLoading}
-                variant="secondary"
-                onPress={() => setDialog(null)}
-              >
-                Cancel
-              </Button>
-              <Button
-                isDisabled={mutation.isLoading}
-                variant="cta"
-                onPress={() => mutation.mutate()}
-              >
-                Confirm
-              </Button>
-            </ButtonGroup>
-          </Dialog>
-        )}
-      </DialogContainer>
+
+      <LoanDialog
+        selectedListing={selectedListing}
+        loading={mutation.isLoading}
+        onRequestClose={() => setDialog(null)}
+        onConfirm={() => mutation.mutate()}
+      />
     </>
   );
 };

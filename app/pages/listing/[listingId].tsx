@@ -1,5 +1,5 @@
 import * as anchor from "@project-serum/anchor";
-import { useConnection } from "@solana/wallet-adapter-react";
+import { useAnchorWallet, useConnection } from "@solana/wallet-adapter-react";
 import {
   Button,
   Divider,
@@ -14,14 +14,21 @@ import { useRouter } from "next/router";
 import * as utils from "../../utils";
 import { ListingState } from "../../lib/web3";
 import { useListingQuery, useMetadataFileQuery } from "../../hooks/query";
+import {
+  useCancelMutation,
+  UseRepaymentMutation,
+  useRepossessMutation,
+} from "../../hooks/mutation";
 import { Body, Heading } from "../../components/typography";
 import { LoadingPlaceholder } from "../../components/progress";
 import { Main } from "../../components/layout";
+import { useState } from "react";
 
 const Listing: NextPage = () => {
   const router = useRouter();
   const { listingId } = router.query;
   const { connection } = useConnection();
+  const anchorWallet = useAnchorWallet();
 
   const pubkey = listingId
     ? new anchor.web3.PublicKey(listingId as string)
@@ -35,14 +42,13 @@ const Listing: NextPage = () => {
   const listing = listingQuery.data?.listing;
   const metadata = listingQuery.data?.metadata;
 
+  const hasExpired =
+    listing &&
+    utils.hasExpired(listing.startDate.toNumber(), listing.duration.toNumber());
+
   function getRepaymentText() {
     if (listing) {
-      if (
-        utils.hasExpired(
-          listing.startDate.toNumber(),
-          listing.duration.toNumber()
-        )
-      ) {
+      if (hasExpired) {
         return (
           <>
             is <strong>overdue</strong>.
@@ -64,6 +70,38 @@ const Listing: NextPage = () => {
         </>
       );
     }
+  }
+
+  function renderActiveButton() {
+    if (
+      listing &&
+      pubkey &&
+      anchorWallet?.publicKey.toBase58() === listing?.borrower.toBase58()
+    ) {
+      return (
+        <RepayButton
+          escrow={listing.escrow}
+          mint={listing.mint}
+          listing={pubkey}
+          lender={listing.lender}
+        />
+      );
+    } else if (
+      hasExpired &&
+      listing &&
+      pubkey &&
+      anchorWallet?.publicKey.toBase58() === listing?.lender.toBase58()
+    ) {
+      return (
+        <RepossessButton
+          escrow={listing.escrow}
+          mint={listing.mint}
+          listing={pubkey}
+        />
+      );
+    }
+
+    return null;
   }
 
   function renderByState() {
@@ -148,11 +186,7 @@ const Listing: NextPage = () => {
                 </SpectrumLink>
               </Body>
             </View>
-            <View>
-              <Button variant="cta" minWidth="size-2000">
-                Repay Loan
-              </Button>
-            </View>
+            <View>{renderActiveButton()}</View>
           </>
         );
 
@@ -193,6 +227,59 @@ const Listing: NextPage = () => {
         </Flex>
       </Flex>
     </Main>
+  );
+};
+
+interface RepayButtonProps {
+  mint: anchor.web3.PublicKey;
+  escrow: anchor.web3.PublicKey;
+  listing: anchor.web3.PublicKey;
+  lender: anchor.web3.PublicKey;
+}
+
+const RepayButton = ({ mint, escrow, listing, lender }: RepayButtonProps) => {
+  const [dialog, setDialog] = useState(false);
+  const mutation = UseRepaymentMutation({ mint, escrow, listing, lender });
+
+  return (
+    <>
+      <Button
+        variant="cta"
+        minWidth="size-2000"
+        onPress={() => setDialog(true)}
+      >
+        Repay Loan
+      </Button>
+      <RepayDialog
+        open={dialog}
+        onRequestClose={() => setDialog(false)}
+        onConfirm={() => mutation.mutate()}
+      />
+    </>
+  );
+};
+
+interface RepossessButtonProps {
+  mint: anchor.web3.PublicKey;
+  escrow: anchor.web3.PublicKey;
+  listing: anchor.web3.PublicKey;
+}
+
+const RepossessButton = ({ mint, escrow, listing }: RepossessButtonProps) => {
+  const mutation = useRepossessMutation({
+    mint,
+    escrow,
+    listing,
+  });
+
+  return (
+    <Button
+      variant="cta"
+      minWidth="size-2000"
+      onPress={() => mutation.mutate()}
+    >
+      Repossess Loan
+    </Button>
   );
 };
 

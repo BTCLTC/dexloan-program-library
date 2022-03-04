@@ -7,11 +7,7 @@ import {
   View,
   Link as SpectrumLink,
 } from "@adobe/react-spectrum";
-import {
-  useConnection,
-  useAnchorWallet,
-  useWallet,
-} from "@solana/wallet-adapter-react";
+import { useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import type { NextPage } from "next";
 import { useMutation, useQueryClient } from "react-query";
 import { toast } from "react-toastify";
@@ -22,6 +18,11 @@ import {
   useBorrowingsQuery,
   useListingsByOwnerQuery,
 } from "../hooks/query";
+import {
+  useCancelMutation,
+  UseRepaymentMutation,
+  useRepossessMutation,
+} from "../hooks/mutation";
 import { ConnectWalletButton } from "../components/button";
 import { Card, CardFlexContainer } from "../components/card";
 import { LoadingPlaceholder } from "../components/progress";
@@ -181,55 +182,11 @@ const LoanCard: React.FC<LoanCardProps> = ({
   startDate,
   uri,
 }) => {
-  const { connection } = useConnection();
-  const wallet = useWallet();
-  const anchorWallet = useAnchorWallet();
-  const queryClient = useQueryClient();
-
-  const mutation = useMutation(
-    async () => {
-      if (anchorWallet && wallet.publicKey) {
-        const lenderTokenAccount = await web3.getOrCreateTokenAccount(
-          connection,
-          wallet,
-          mint
-        );
-
-        return web3.repossessCollateral(
-          connection,
-          anchorWallet,
-          mint,
-          escrow,
-          lenderTokenAccount,
-          listing
-        );
-      }
-      throw new Error("Not ready");
-    },
-    {
-      onError(err) {
-        console.error(err);
-        if (err instanceof Error) {
-          toast.error("Error: " + err.message);
-        }
-      },
-      onSuccess() {
-        toast.success("NFT repossessed.");
-
-        queryClient.setQueryData(
-          ["loans", anchorWallet?.publicKey.toBase58()],
-          (loans: any[] | undefined) => {
-            if (!loans) return [];
-
-            return loans.filter(
-              (loans) =>
-                loans.listing.publicKey.toBase58() !== listing.toBase58()
-            );
-          }
-        );
-      },
-    }
-  );
+  const mutation = useRepossessMutation({
+    mint,
+    escrow,
+    listing,
+  });
 
   return (
     <Card uri={uri}>
@@ -303,48 +260,12 @@ const BorrowingCard: React.FC<BorrowingCardProps> = ({
   startDate,
   uri,
 }) => {
-  const { connection } = useConnection();
-  const anchorWallet = useAnchorWallet();
-  const queryClient = useQueryClient();
-
-  const mutation = useMutation(
-    () => {
-      if (anchorWallet) {
-        return web3.repayLoan(
-          connection,
-          anchorWallet,
-          mint,
-          lender,
-          listing,
-          escrow
-        );
-      }
-      throw new Error("Not ready");
-    },
-    {
-      onError(err) {
-        console.error(err);
-        if (err instanceof Error) {
-          toast.error("Error: " + err.message);
-        }
-      },
-      onSuccess() {
-        toast.success("Loan repaid. Your NFT has been returned to you.");
-
-        queryClient.setQueryData(
-          ["borrowings", anchorWallet?.publicKey.toBase58()],
-          (borrowings: any[] | undefined) => {
-            if (!borrowings) return [];
-
-            return borrowings.filter(
-              (borrowing) =>
-                borrowing.listing.publicKey.toBase58() !== listing.toBase58()
-            );
-          }
-        );
-      },
-    }
-  );
+  const mutation = UseRepaymentMutation({
+    escrow,
+    lender,
+    listing,
+    mint,
+  });
 
   return (
     <Card uri={uri}>
@@ -407,46 +328,11 @@ const ListedCard: React.FC<ListingCardProps> = ({
   name,
   uri,
 }) => {
-  const { connection } = useConnection();
-  const anchorWallet = useAnchorWallet();
-  const queryClient = useQueryClient();
-
-  const mutation = useMutation(
-    () => {
-      if (anchorWallet) {
-        return web3.cancelListing(
-          connection,
-          anchorWallet,
-          mint,
-          listing,
-          escrow
-        );
-      }
-      throw new Error("Not ready");
-    },
-    {
-      onError(err) {
-        console.error(err);
-        if (err instanceof Error) {
-          toast.error("Error: " + err.message);
-        }
-      },
-      onSuccess() {
-        toast.success("Listing cancelled");
-
-        queryClient.setQueryData(
-          ["listings", anchorWallet?.publicKey.toBase58()],
-          (listings: any[] | undefined) => {
-            if (!listings) return [];
-
-            return listings.filter(
-              (item) => item.listing.publicKey.toBase58() !== listing.toBase58()
-            );
-          }
-        );
-      },
-    }
-  );
+  const mutation = useCancelMutation({
+    escrow,
+    listing,
+    mint,
+  });
 
   return (
     <Card uri={uri}>

@@ -33,7 +33,7 @@ export const Card: React.FC<CardProps> = ({ elementType, children, uri }) => {
 
 export const CardFlexContainer: React.FC = ({ children }) => {
   return (
-    <Flex direction="row" gap="size-200" wrap="wrap" justifyContent="center">
+    <Flex direction="row" gap="size-200" wrap="wrap" justifyContent="start">
       {children}
     </Flex>
   );

@@ -35,7 +35,17 @@ const Manage: NextPage = () => {
   const loansQueryResult = useLoansQuery(connection, anchorWallet);
   const borrowingsQueryResult = useBorrowingsQuery(connection, anchorWallet);
   const listingsQueryResult = useListingsByOwnerQuery(connection, anchorWallet);
-
+  console.log({
+    loansQueryResult: loansQueryResult.data?.map((l) =>
+      l?.listing.publicKey.toBase58()
+    ),
+    borrowingsQueryResult: borrowingsQueryResult.data?.map((l) =>
+      l?.listing.publicKey.toBase58()
+    ),
+    listingsQueryResult: listingsQueryResult.data?.map((l) =>
+      l?.listing.publicKey.toBase58()
+    ),
+  });
   if (!anchorWallet) {
     return (
       <Flex direction="row" justifyContent="center">

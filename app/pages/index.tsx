@@ -1,28 +1,17 @@
 import * as anchor from "@project-serum/anchor";
 import {
   Button,
-  ButtonGroup,
-  Content,
-  Dialog,
-  DialogContainer,
   Divider,
-  Heading as DialogHeading,
-  Header,
   Flex,
-  Text,
-  View,
   Link as SpectrumLink,
-  ProgressCircle,
 } from "@adobe/react-spectrum";
 import { useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import type { NextPage } from "next";
+import { useRouter } from "next/router";
 import { useState } from "react";
-import { useMutation, useQueryClient } from "react-query";
-import { toast } from "react-toastify";
 
 import type { Listing } from "../types";
 import * as utils from "../utils";
-import * as web3 from "../lib/web3";
 import { useListingsQuery } from "../hooks/query";
 import { useWalletConnect } from "../components/button";
 import { Card, CardFlexContainer } from "../components/card";
@@ -30,58 +19,17 @@ import { LoadingPlaceholder } from "../components/progress";
 import { Body, Heading, Typography } from "../components/typography";
 import { Main } from "../components/layout";
 import { LoanDialog } from "../components/dialog";
+import { useLoanMutation } from "../hooks/mutation";
 
 const Listings: NextPage = () => {
   const { connection } = useConnection();
   const anchorWallet = useAnchorWallet();
   const [handleConnect] = useWalletConnect();
-  const queryClient = useQueryClient();
   const queryResult = useListingsQuery(connection);
+  const router = useRouter();
 
   const [selectedListing, setDialog] = useState<Listing | null>(null);
-
-  const mutation = useMutation(
-    () => {
-      if (anchorWallet && selectedListing) {
-        return web3.createLoan(
-          connection,
-          anchorWallet,
-          selectedListing.account.mint,
-          selectedListing.account.borrower,
-          selectedListing.publicKey
-        );
-      }
-      throw new Error("Not ready");
-    },
-    {
-      onSuccess() {
-        queryClient.setQueryData(["listings"], (data: any) => {
-          if (data) {
-            return data?.filter(
-              (item: any) =>
-                item.listing.publicKey.toBase58() !==
-                selectedListing?.publicKey.toBase58()
-            );
-          }
-        });
-
-        queryClient.invalidateQueries([
-          "loans",
-          anchorWallet?.publicKey.toBase58(),
-        ]);
-
-        setDialog(null);
-
-        toast.success("Listing created");
-      },
-      onError(err) {
-        console.error(err);
-        if (err instanceof Error) {
-          toast.error("Error: " + err.message);
-        }
-      },
-    }
-  );
+  const mutation = useLoanMutation(() => setDialog(null));
 
   async function onCreateLoan(item: any) {
     if (anchorWallet) {
@@ -90,10 +38,12 @@ const Listings: NextPage = () => {
       handleConnect(() => setDialog(item.listing));
     }
   }
+
   console.log(
     "listings: ",
     queryResult.data?.[0]?.listing.publicKey.toBase58()
   );
+
   return (
     <>
       {queryResult.isLoading ? (
@@ -141,6 +91,18 @@ const Listings: NextPage = () => {
                     <Divider size="S" marginTop="size-600" />
                     <Flex direction="row" justifyContent="end">
                       <Button
+                        variant="secondary"
+                        marginY="size-200"
+                        marginEnd="size-100"
+                        onPress={() =>
+                          router.push(
+                            `/listing/${item.listing.publicKey.toBase58()}`
+                          )
+                        }
+                      >
+                        View
+                      </Button>
+                      <Button
                         variant="cta"
                         marginY="size-200"
                         onPress={() => onCreateLoan(item)}
@@ -156,10 +118,20 @@ const Listings: NextPage = () => {
       )}
 
       <LoanDialog
-        selectedListing={selectedListing}
+        open={Boolean(selectedListing)}
+        amount={selectedListing?.account.amount.toNumber() ?? 0}
+        basisPoints={selectedListing?.account.basisPoints ?? 0}
         loading={mutation.isLoading}
         onRequestClose={() => setDialog(null)}
-        onConfirm={() => mutation.mutate()}
+        onConfirm={() => {
+          if (selectedListing) {
+            mutation.mutate({
+              mint: selectedListing.account.mint,
+              borrower: selectedListing.account.borrower,
+              listing: selectedListing.publicKey,
+            });
+          }
+        }}
       />
     </>
   );

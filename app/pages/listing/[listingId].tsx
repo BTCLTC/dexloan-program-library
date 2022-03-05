@@ -11,18 +11,25 @@ import {
 } from "@adobe/react-spectrum";
 import type { NextPage } from "next";
 import { useRouter } from "next/router";
+import { useState } from "react";
 import * as utils from "../../utils";
 import { ListingState } from "../../lib/web3";
 import { useListingQuery, useMetadataFileQuery } from "../../hooks/query";
 import {
   useCancelMutation,
-  UseRepaymentMutation,
+  useLoanMutation,
+  useRepaymentMutation,
   useRepossessMutation,
 } from "../../hooks/mutation";
 import { Body, Heading } from "../../components/typography";
 import { LoadingPlaceholder } from "../../components/progress";
 import { Main } from "../../components/layout";
-import { useState } from "react";
+import {
+  CancelDialog,
+  LoanDialog,
+  RepayDialog,
+  RepossessDialog,
+} from "../../components/dialog";
 
 const Listing: NextPage = () => {
   const router = useRouter();
@@ -104,6 +111,33 @@ const Listing: NextPage = () => {
     return null;
   }
 
+  function renderListedButton() {
+    if (
+      listing &&
+      pubkey &&
+      pubkey.toBase58() === listing?.borrower.toBase58()
+    ) {
+      return (
+        <CancelButton
+          escrow={listing.escrow}
+          mint={listing.mint}
+          listing={pubkey}
+        />
+      );
+    } else if (listing && pubkey) {
+      return (
+        <LoanButton
+          listing={pubkey}
+          mint={listing.mint}
+          borrower={listing.borrower}
+          amount={listing.amount.toNumber()}
+          basisPoints={listing.basisPoints}
+        />
+      );
+    }
+    return null;
+  }
+
   function renderByState() {
     if (listing === undefined) return null;
 
@@ -130,17 +164,20 @@ const Listing: NextPage = () => {
                 &nbsp;APY.
               </Body>
             </View>
-            <Body>
-              <SpectrumLink>
-                <a
-                  href={`https://explorer.solana.com/address/${listing?.mint.toBase58()}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  View in Explorer
-                </a>
-              </SpectrumLink>
-            </Body>
+            <View marginBottom="size-200">
+              <Body>
+                <SpectrumLink>
+                  <a
+                    href={`https://explorer.solana.com/address/${listing?.mint.toBase58()}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    View in Explorer
+                  </a>
+                </SpectrumLink>
+              </Body>
+            </View>
+            <View>{renderListedButton()}</View>
           </>
         );
 
@@ -230,16 +267,87 @@ const Listing: NextPage = () => {
   );
 };
 
-interface RepayButtonProps {
+interface LoanButtonProps {
+  mint: anchor.web3.PublicKey;
+  borrower: anchor.web3.PublicKey;
+  listing: anchor.web3.PublicKey;
+  amount: number;
+  basisPoints: number;
+}
+
+const LoanButton = ({
+  mint,
+  borrower,
+  listing,
+  amount,
+  basisPoints,
+}: LoanButtonProps) => {
+  const [open, setDialog] = useState(false);
+  const mutation = useLoanMutation(() => setDialog(false));
+
+  return (
+    <>
+      <Button
+        variant="cta"
+        minWidth="size-2000"
+        onPress={() => setDialog(true)}
+      >
+        Lend SOL
+      </Button>
+      <LoanDialog
+        open={open}
+        loading={mutation.isLoading}
+        amount={amount}
+        basisPoints={basisPoints}
+        onRequestClose={() => setDialog(false)}
+        onConfirm={() =>
+          mutation.mutate({
+            mint,
+            borrower,
+            listing,
+          })
+        }
+      />
+    </>
+  );
+};
+
+interface CancelButtonProps {
   mint: anchor.web3.PublicKey;
   escrow: anchor.web3.PublicKey;
   listing: anchor.web3.PublicKey;
+}
+
+const CancelButton = ({ mint, escrow, listing }: CancelButtonProps) => {
+  const [dialog, setDialog] = useState(false);
+  const mutation = useCancelMutation(() => setDialog(false));
+
+  return (
+    <>
+      <Button
+        variant="cta"
+        minWidth="size-2000"
+        onPress={() => setDialog(true)}
+      >
+        Cancel Listing
+      </Button>
+      <CancelDialog
+        open={dialog}
+        loading={mutation.isLoading}
+        onRequestClose={() => setDialog(false)}
+        onConfirm={() => mutation.mutate({ mint, escrow, listing })}
+      />
+    </>
+  );
+};
+
+interface RepayButtonProps extends CancelButtonProps {
   lender: anchor.web3.PublicKey;
 }
 
 const RepayButton = ({ mint, escrow, listing, lender }: RepayButtonProps) => {
   const [dialog, setDialog] = useState(false);
-  const mutation = UseRepaymentMutation({ mint, escrow, listing, lender });
+  const mutation = useRepaymentMutation(() => setDialog(false));
 
   return (
     <>
@@ -252,8 +360,16 @@ const RepayButton = ({ mint, escrow, listing, lender }: RepayButtonProps) => {
       </Button>
       <RepayDialog
         open={dialog}
+        loading={mutation.isLoading}
         onRequestClose={() => setDialog(false)}
-        onConfirm={() => mutation.mutate()}
+        onConfirm={() =>
+          mutation.mutate({
+            mint,
+            escrow,
+            listing,
+            lender,
+          })
+        }
       />
     </>
   );
@@ -266,20 +382,31 @@ interface RepossessButtonProps {
 }
 
 const RepossessButton = ({ mint, escrow, listing }: RepossessButtonProps) => {
-  const mutation = useRepossessMutation({
-    mint,
-    escrow,
-    listing,
-  });
+  const [dialog, setDialog] = useState(false);
+  const mutation = useRepossessMutation(() => setDialog(false));
 
   return (
-    <Button
-      variant="cta"
-      minWidth="size-2000"
-      onPress={() => mutation.mutate()}
-    >
-      Repossess Loan
-    </Button>
+    <>
+      <Button
+        variant="cta"
+        minWidth="size-2000"
+        onPress={() => mutation.mutate({ mint, escrow, listing })}
+      >
+        Repossess Loan
+      </Button>
+      <RepossessDialog
+        open={dialog}
+        loading={mutation.isLoading}
+        onRequestClose={() => setDialog(false)}
+        onConfirm={() =>
+          mutation.mutate({
+            mint,
+            escrow,
+            listing,
+          })
+        }
+      />
+    </>
   );
 };
 

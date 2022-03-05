@@ -72,33 +72,34 @@ const MutationDialog = ({
 };
 
 interface LoanDialogProps {
-  selectedListing: Listing | null;
+  open: boolean;
+  amount: number;
+  basisPoints: number;
   loading: boolean;
   onConfirm: () => void;
   onRequestClose: () => void;
 }
 
 export const LoanDialog = ({
-  selectedListing,
+  open,
+  amount,
+  basisPoints,
   loading,
   onConfirm,
   onRequestClose,
 }: LoanDialogProps) => {
   return (
     <MutationDialog
-      open={Boolean(selectedListing)}
+      open={open}
       loading={loading}
       header={
-        selectedListing && (
+        amount &&
+        basisPoints && (
           <>
             Lending&nbsp;
-            <strong>
-              {selectedListing.account.amount.toNumber() /
-                anchor.web3.LAMPORTS_PER_SOL}{" "}
-              SOL
-            </strong>
+            <strong>{amount / anchor.web3.LAMPORTS_PER_SOL} SOL</strong>
             &nbsp;@&nbsp;
-            <strong>{selectedListing.account.basisPoints / 100}% APY</strong>
+            <strong>{basisPoints / 100}% APY</strong>
           </>
         )
       }
@@ -152,6 +153,32 @@ export const RepayDialog = ({
       loading={loading}
       header={"Repay Listing"}
       content={<Text>Repay listing?</Text>}
+      onConfirm={onConfirm}
+      onRequestClose={onRequestClose}
+    />
+  );
+};
+
+export const RepossessDialog = ({
+  open,
+  loading,
+  onConfirm,
+  onRequestClose,
+}: Pick<
+  MutationDialogProps,
+  "open" | "loading" | "onConfirm" | "onRequestClose"
+>) => {
+  return (
+    <MutationDialog
+      open={open}
+      loading={loading}
+      header={"Repossess NFT"}
+      content={
+        <Text>
+          Are you sure you wish to repossess the NFT collateral? By doing so the
+          loan will default and you will not be able to receive for repayment.
+        </Text>
+      }
       onConfirm={onConfirm}
       onRequestClose={onRequestClose}
     />

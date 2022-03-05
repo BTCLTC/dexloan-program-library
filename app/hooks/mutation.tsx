@@ -9,24 +9,20 @@ import { toast } from "react-toastify";
 
 import * as web3 from "../lib/web3";
 
-interface UseRepossessMutationProps {
+interface RepossessMutationProps {
   escrow: anchor.web3.PublicKey;
   mint: anchor.web3.PublicKey;
   listing: anchor.web3.PublicKey;
 }
 
-export const useRepossessMutation = ({
-  mint,
-  escrow,
-  listing,
-}: UseRepossessMutationProps) => {
+export const useRepossessMutation = (onSuccess: () => void) => {
   const wallet = useWallet();
   const anchorWallet = useAnchorWallet();
   const { connection } = useConnection();
   const queryClient = useQueryClient();
 
-  return useMutation(
-    async () => {
+  return useMutation<void, Error, RepossessMutationProps>(
+    async ({ mint, escrow, listing }) => {
       if (anchorWallet && wallet.publicKey) {
         const lenderTokenAccount = await web3.getOrCreateTokenAccount(
           connection,
@@ -52,7 +48,7 @@ export const useRepossessMutation = ({
           toast.error("Error: " + err.message);
         }
       },
-      onSuccess() {
+      onSuccess(_, variables) {
         toast.success("NFT repossessed.");
 
         queryClient.setQueryData(
@@ -62,13 +58,14 @@ export const useRepossessMutation = ({
 
             return loans.filter(
               (loans) =>
-                loans.listing.publicKey.toBase58() !== listing.toBase58()
+                loans.listing.publicKey.toBase58() !==
+                variables.listing.toBase58()
             );
           }
         );
 
         queryClient.setQueryData(
-          ["listing", listing.toBase58()],
+          ["listing", variables.listing.toBase58()],
           (data: any) => {
             if (data) {
               return {
@@ -81,27 +78,24 @@ export const useRepossessMutation = ({
             }
           }
         );
+
+        onSuccess();
       },
     }
   );
 };
 
-interface UseRepaymentMutationProps extends UseRepossessMutationProps {
+interface RepaymentMutationProps extends RepossessMutationProps {
   lender: anchor.web3.PublicKey;
 }
 
-export const UseRepaymentMutation = ({
-  mint,
-  escrow,
-  listing,
-  lender,
-}: UseRepaymentMutationProps) => {
+export const useRepaymentMutation = (onSuccess: () => void) => {
   const { connection } = useConnection();
   const anchorWallet = useAnchorWallet();
   const queryClient = useQueryClient();
 
-  return useMutation(
-    () => {
+  return useMutation<void, Error, RepaymentMutationProps>(
+    ({ mint, escrow, listing, lender }) => {
       if (anchorWallet) {
         return web3.repayLoan(
           connection,
@@ -121,7 +115,7 @@ export const UseRepaymentMutation = ({
           toast.error("Error: " + err.message);
         }
       },
-      onSuccess() {
+      onSuccess(_, variables) {
         toast.success("Loan repaid. Your NFT has been returned to you.");
 
         queryClient.setQueryData(
@@ -131,13 +125,14 @@ export const UseRepaymentMutation = ({
 
             return borrowings.filter(
               (borrowing) =>
-                borrowing.listing.publicKey.toBase58() !== listing.toBase58()
+                borrowing.listing.publicKey.toBase58() !==
+                variables.listing.toBase58()
             );
           }
         );
 
         queryClient.setQueryData(
-          ["listing", listing.toBase58()],
+          ["listing", variables.listing.toBase58()],
           (data: any) => {
             if (data) {
               return {
@@ -150,24 +145,22 @@ export const UseRepaymentMutation = ({
             }
           }
         );
+
+        onSuccess();
       },
     }
   );
 };
 
-interface UseCancelMutationProps extends UseRepossessMutationProps {}
+interface CancelMutationProps extends RepossessMutationProps {}
 
-export const useCancelMutation = ({
-  mint,
-  escrow,
-  listing,
-}: UseCancelMutationProps) => {
+export const useCancelMutation = (onSuccess: () => void) => {
   const { connection } = useConnection();
   const anchorWallet = useAnchorWallet();
   const queryClient = useQueryClient();
 
-  return useMutation(
-    () => {
+  return useMutation<void, Error, CancelMutationProps>(
+    ({ mint, escrow, listing }) => {
       if (anchorWallet) {
         return web3.cancelListing(
           connection,
@@ -186,7 +179,7 @@ export const useCancelMutation = ({
           toast.error("Error: " + err.message);
         }
       },
-      onSuccess() {
+      onSuccess(_, variables) {
         console.log("success!");
         toast.success("Listing cancelled");
 
@@ -196,10 +189,83 @@ export const useCancelMutation = ({
             if (!listings) return [];
 
             return listings.filter(
-              (item) => item.listing.publicKey.toBase58() !== listing.toBase58()
+              (item) =>
+                item.listing.publicKey.toBase58() !==
+                variables.listing.toBase58()
             );
           }
         );
+
+        queryClient.setQueryData(
+          ["listing", variables.listing.toBase58()],
+          (data: any) => {
+            if (data) {
+              return {
+                ...data,
+                listing: {
+                  ...data.listing,
+                  status: web3.ListingState.Active,
+                },
+              };
+            }
+          }
+        );
+
+        onSuccess();
+      },
+    }
+  );
+};
+
+interface LoanMutationProps {
+  mint: anchor.web3.PublicKey;
+  borrower: anchor.web3.PublicKey;
+  listing: anchor.web3.PublicKey;
+}
+
+export const useLoanMutation = (onSuccess: () => void) => {
+  const anchorWallet = useAnchorWallet();
+  const { connection } = useConnection();
+  const queryClient = useQueryClient();
+
+  return useMutation<void, Error, LoanMutationProps>(
+    async ({ mint, borrower, listing }) => {
+      if (anchorWallet) {
+        await web3.createLoan(
+          connection,
+          anchorWallet,
+          mint,
+          borrower,
+          listing
+        );
+      }
+      throw new Error("Not ready");
+    },
+    {
+      onSuccess(_, variables) {
+        queryClient.setQueryData(["listings"], (data: any) => {
+          if (data) {
+            return data?.filter(
+              (item: any) =>
+                item.listing.publicKey.toBase58() !==
+                variables.listing.toBase58()
+            );
+          }
+        });
+
+        queryClient.invalidateQueries([
+          "loans",
+          anchorWallet?.publicKey.toBase58(),
+        ]);
+
+        toast.success("Listing created");
+        onSuccess();
+      },
+      onError(err) {
+        console.error(err);
+        if (err instanceof Error) {
+          toast.error("Error: " + err.message);
+        }
       },
     }
   );

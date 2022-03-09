@@ -39,11 +39,6 @@ const Listings: NextPage = () => {
     }
   }
 
-  console.log(
-    "listings: ",
-    queryResult.data?.[0]?.listing.publicKey.toBase58()
-  );
-
   return (
     <>
       {queryResult.isLoading ? (

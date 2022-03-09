@@ -30,6 +30,7 @@ import {
   RepayDialog,
   RepossessDialog,
 } from "../../components/dialog";
+import { useWalletConnect } from "../../components/button";
 
 const Listing: NextPage = () => {
   const router = useRouter();
@@ -296,14 +297,20 @@ const LoanButton = ({
 }: LoanButtonProps) => {
   const [open, setDialog] = useState(false);
   const mutation = useLoanMutation(() => setDialog(false));
+  const anchorWallet = useAnchorWallet();
+  const [handleConnect] = useWalletConnect();
+
+  async function onLend() {
+    if (anchorWallet) {
+      setDialog(true);
+    } else {
+      handleConnect(() => setDialog(true));
+    }
+  }
 
   return (
     <>
-      <Button
-        variant="cta"
-        minWidth="size-2000"
-        onPress={() => setDialog(true)}
-      >
+      <Button variant="cta" minWidth="size-2000" onPress={() => onLend()}>
         Lend SOL
       </Button>
       <LoanDialog
@@ -333,14 +340,20 @@ interface CancelButtonProps {
 const CancelButton = ({ mint, escrow, listing }: CancelButtonProps) => {
   const [dialog, setDialog] = useState(false);
   const mutation = useCancelMutation(() => setDialog(false));
+  const anchorWallet = useAnchorWallet();
+  const [handleConnect] = useWalletConnect();
+
+  async function onCancel() {
+    if (anchorWallet) {
+      setDialog(true);
+    } else {
+      handleConnect(() => setDialog(true));
+    }
+  }
 
   return (
     <>
-      <Button
-        variant="cta"
-        minWidth="size-2000"
-        onPress={() => setDialog(true)}
-      >
+      <Button variant="cta" minWidth="size-2000" onPress={() => onCancel()}>
         Cancel Listing
       </Button>
       <CancelDialog
@@ -360,14 +373,20 @@ interface RepayButtonProps extends CancelButtonProps {
 const RepayButton = ({ mint, escrow, listing, lender }: RepayButtonProps) => {
   const [dialog, setDialog] = useState(false);
   const mutation = useRepaymentMutation(() => setDialog(false));
+  const anchorWallet = useAnchorWallet();
+  const [handleConnect] = useWalletConnect();
+
+  async function onRepay() {
+    if (anchorWallet) {
+      setDialog(true);
+    } else {
+      handleConnect(() => setDialog(true));
+    }
+  }
 
   return (
     <>
-      <Button
-        variant="cta"
-        minWidth="size-2000"
-        onPress={() => setDialog(true)}
-      >
+      <Button variant="cta" minWidth="size-2000" onPress={() => onRepay()}>
         Repay Loan
       </Button>
       <RepayDialog
@@ -396,14 +415,20 @@ interface RepossessButtonProps {
 const RepossessButton = ({ mint, escrow, listing }: RepossessButtonProps) => {
   const [dialog, setDialog] = useState(false);
   const mutation = useRepossessMutation(() => setDialog(false));
+  const anchorWallet = useAnchorWallet();
+  const [handleConnect] = useWalletConnect();
+
+  async function onRepossess() {
+    if (anchorWallet) {
+      setDialog(true);
+    } else {
+      handleConnect(() => setDialog(true));
+    }
+  }
 
   return (
     <>
-      <Button
-        variant="cta"
-        minWidth="size-2000"
-        onPress={() => mutation.mutate({ mint, escrow, listing })}
-      >
+      <Button variant="cta" minWidth="size-2000" onPress={() => onRepossess()}>
         Repossess Loan
       </Button>
       <RepossessDialog

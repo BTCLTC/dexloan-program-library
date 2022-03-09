@@ -163,8 +163,20 @@ const Listing: NextPage = () => {
                 </strong>
                 &nbsp;APY.
               </Body>
+              <Body>
+                After {utils.toMonths(listing.duration.toNumber())} months the
+                total repayment required will be{" "}
+                {utils
+                  .totalAmount(
+                    listing.amount.toNumber(),
+                    Date.now() / 1000 - listing.duration.toNumber(),
+                    listing.basisPoints
+                  )
+                  .toFixed(2)}{" "}
+                SOL.
+              </Body>
             </View>
-            <View marginBottom="size-200">
+            <View marginBottom="size-300">
               <Body>
                 <SpectrumLink>
                   <a
@@ -210,7 +222,7 @@ const Listing: NextPage = () => {
                 SOL currently owed. Repayment {getRepaymentText()}
               </Body>
             </View>
-            <View paddingBottom="size-200">
+            <View paddingBottom="size-300">
               <Body>
                 <SpectrumLink>
                   <a
@@ -252,11 +264,11 @@ const Listing: NextPage = () => {
           </View>
         </Flex>
         <Flex flex={1} direction="column">
-          <View padding="size-100">
+          <View paddingX="size-100" paddingY="size-200">
             <View>
               <Heading size="L">{metadata?.data.data.name}</Heading>
             </View>
-            <View paddingY="size-100">
+            <View paddingY="size-200">
               <Divider size="M" />
             </View>
             {renderByState()}

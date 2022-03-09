@@ -9,10 +9,8 @@ import {
 } from "@adobe/react-spectrum";
 import { useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import type { NextPage } from "next";
-import { useMutation, useQueryClient } from "react-query";
-import { toast } from "react-toastify";
+import { useState } from "react";
 import * as utils from "../utils";
-import * as web3 from "../lib/web3";
 import {
   useLoansQuery,
   useBorrowingsQuery,
@@ -20,7 +18,7 @@ import {
 } from "../hooks/query";
 import {
   useCancelMutation,
-  UseRepaymentMutation,
+  useRepaymentMutation,
   useRepossessMutation,
 } from "../hooks/mutation";
 import { ConnectWalletButton } from "../components/button";
@@ -28,6 +26,11 @@ import { Card, CardFlexContainer } from "../components/card";
 import { LoadingPlaceholder } from "../components/progress";
 import { Typography, Body, Heading } from "../components/typography";
 import { Main } from "../components/layout";
+import {
+  CancelDialog,
+  RepayDialog,
+  RepossessDialog,
+} from "../components/dialog";
 
 const Manage: NextPage = () => {
   const { connection } = useConnection();
@@ -182,56 +185,71 @@ const LoanCard: React.FC<LoanCardProps> = ({
   startDate,
   uri,
 }) => {
-  const mutation = useRepossessMutation({
-    mint,
-    escrow,
-    listing,
-  });
+  const [dialog, setDialog] = useState(false);
+  const mutation = useRepossessMutation(() => setDialog(false));
 
   return (
-    <Card uri={uri}>
-      <Typography>
-        <Heading size="S">{name}</Heading>
-        <Body size="S">
-          Lending&nbsp;
-          <strong>
-            {amount / anchor.web3.LAMPORTS_PER_SOL}
-            &nbsp;SOL
-          </strong>
-          &nbsp;for&nbsp;
-          {utils.toMonths(duration)}
-          &nbsp;months&nbsp;@&nbsp;
-          <strong>{basisPoints / 100}%</strong>
-          &nbsp;APY.&nbsp;
-          <SpectrumLink>
-            <a
-              href={`https://explorer.solana.com/address/${mint}`}
-              target="_blank"
-              rel="noreferrer"
+    <>
+      <Card uri={uri}>
+        <Typography>
+          <Heading size="S">{name}</Heading>
+          <Body size="S">
+            Lending&nbsp;
+            <strong>
+              {amount / anchor.web3.LAMPORTS_PER_SOL}
+              &nbsp;SOL
+            </strong>
+            &nbsp;for&nbsp;
+            {utils.toMonths(duration)}
+            &nbsp;months&nbsp;@&nbsp;
+            <strong>{basisPoints / 100}%</strong>
+            &nbsp;APY.&nbsp;
+            <SpectrumLink>
+              <a
+                href={`https://explorer.solana.com/address/${mint}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                View in Explorer
+              </a>
+            </SpectrumLink>
+          </Body>
+        </Typography>
+        <Divider size="S" marginTop="size-600" />
+        <Flex direction="row" justifyContent="end">
+          {utils.hasExpired(startDate, duration) ? (
+            <Button
+              marginY="size-200"
+              variant="primary"
+              onPress={() => setDialog(false)}
             >
-              View in Explorer
-            </a>
-          </SpectrumLink>
-        </Body>
-      </Typography>
-      <Divider size="S" marginTop="size-600" />
-      <Flex direction="row" justifyContent="end">
-        {utils.hasExpired(startDate, duration) ? (
-          <Button
-            marginY="size-200"
-            variant="primary"
-            onPress={() => mutation.mutate()}
-          >
-            Repossess
-          </Button>
-        ) : (
-          <StatusLight marginY="size-200" marginX="size-50" variant="positive">
-            {utils.yieldGenerated(amount, startDate, basisPoints).toFixed(4)}{" "}
-            SOL earned - due {utils.getFormattedDueDate(startDate, duration)}
-          </StatusLight>
-        )}
-      </Flex>
-    </Card>
+              Repossess
+            </Button>
+          ) : (
+            <StatusLight
+              marginY="size-200"
+              marginX="size-50"
+              variant="positive"
+            >
+              {utils.yieldGenerated(amount, startDate, basisPoints).toFixed(4)}{" "}
+              SOL earned - due {utils.getFormattedDueDate(startDate, duration)}
+            </StatusLight>
+          )}
+        </Flex>
+      </Card>
+      <RepossessDialog
+        open={dialog}
+        loading={mutation.isLoading}
+        onConfirm={() =>
+          mutation.mutate({
+            escrow,
+            listing,
+            mint,
+          })
+        }
+        onRequestClose={() => setDialog(false)}
+      />
+    </>
   );
 };
 
@@ -260,50 +278,61 @@ const BorrowingCard: React.FC<BorrowingCardProps> = ({
   startDate,
   uri,
 }) => {
-  const mutation = UseRepaymentMutation({
-    escrow,
-    lender,
-    listing,
-    mint,
-  });
+  const [dialog, setDialog] = useState(false);
+  const mutation = useRepaymentMutation(() => setDialog(false));
 
   return (
-    <Card uri={uri}>
-      <Typography>
-        <Heading size="S">{name}</Heading>
-        <Body size="S">
-          Borrowing&nbsp;
-          <strong>
-            {amount / anchor.web3.LAMPORTS_PER_SOL}
-            &nbsp;SOL
-          </strong>
-          &nbsp;for&nbsp;
-          {utils.toMonths(duration)}
-          &nbsp;months&nbsp;@&nbsp;
-          <strong>{basisPoints / 100}%</strong>
-          &nbsp;APY.&nbsp;
-          <SpectrumLink>
-            <a
-              href={`https://explorer.solana.com/address/${mint}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              View in Explorer
-            </a>
-          </SpectrumLink>
-        </Body>
-      </Typography>
-      <Divider size="S" marginTop="size-600" />
-      <Flex direction="row" justifyContent="right">
-        <Button
-          marginY="size-200"
-          variant="primary"
-          onPress={() => mutation.mutate()}
-        >
-          Repay {utils.totalAmount(amount, startDate, basisPoints).toFixed(4)}
-        </Button>
-      </Flex>
-    </Card>
+    <>
+      <Card uri={uri}>
+        <Typography>
+          <Heading size="S">{name}</Heading>
+          <Body size="S">
+            Borrowing&nbsp;
+            <strong>
+              {amount / anchor.web3.LAMPORTS_PER_SOL}
+              &nbsp;SOL
+            </strong>
+            &nbsp;for&nbsp;
+            {utils.toMonths(duration)}
+            &nbsp;months&nbsp;@&nbsp;
+            <strong>{basisPoints / 100}%</strong>
+            &nbsp;APY.&nbsp;
+            <SpectrumLink>
+              <a
+                href={`https://explorer.solana.com/address/${mint}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                View in Explorer
+              </a>
+            </SpectrumLink>
+          </Body>
+        </Typography>
+        <Divider size="S" marginTop="size-600" />
+        <Flex direction="row" justifyContent="right">
+          <Button
+            marginY="size-200"
+            variant="primary"
+            onPress={() => setDialog(true)}
+          >
+            Repay {utils.totalAmount(amount, startDate, basisPoints).toFixed(4)}
+          </Button>
+        </Flex>
+      </Card>
+      <RepayDialog
+        open={dialog}
+        loading={mutation.isLoading}
+        onConfirm={() =>
+          mutation.mutate({
+            escrow,
+            lender,
+            listing,
+            mint,
+          })
+        }
+        onRequestClose={() => setDialog(false)}
+      />
+    </>
   );
 };
 
@@ -328,49 +357,66 @@ const ListedCard: React.FC<ListingCardProps> = ({
   name,
   uri,
 }) => {
-  const mutation = useCancelMutation({
-    escrow,
-    listing,
-    mint,
-  });
+  const [dialog, setDialog] = useState(false);
+  const mutation = useCancelMutation(() => setDialog(false));
 
   return (
-    <Card uri={uri}>
-      <Typography>
-        <Heading size="S">{name}</Heading>
-        <Body size="S">
-          Borrowing&nbsp;
-          <strong>
-            {amount / anchor.web3.LAMPORTS_PER_SOL}
-            &nbsp;SOL
-          </strong>
-          &nbsp;for&nbsp;
-          {utils.toMonths(duration)}
-          &nbsp;months&nbsp;@&nbsp;
-          <strong>{basisPoints / 100}%</strong>
-          &nbsp;APY.&nbsp;
-          <SpectrumLink>
-            <a
-              href={`https://explorer.solana.com/address/${mint}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              View in Explorer
-            </a>
-          </SpectrumLink>
-        </Body>
-      </Typography>
-      <Divider size="S" marginTop="size-600" />
-      <Flex direction="row" justifyContent="right">
-        <Button
-          marginY="size-200"
-          variant="primary"
-          onPress={() => mutation.mutate()}
-        >
-          Cancel
-        </Button>
-      </Flex>
-    </Card>
+    <>
+      <Card uri={uri}>
+        <Typography>
+          <Heading size="S">{name}</Heading>
+          <Body size="S">
+            Borrowing&nbsp;
+            <strong>
+              {amount / anchor.web3.LAMPORTS_PER_SOL}
+              &nbsp;SOL
+            </strong>
+            &nbsp;for&nbsp;
+            {utils.toMonths(duration)}
+            &nbsp;months&nbsp;@&nbsp;
+            <strong>{basisPoints / 100}%</strong>
+            &nbsp;APY.&nbsp;
+            <SpectrumLink>
+              <a
+                href={`https://explorer.solana.com/address/${mint}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                View in Explorer
+              </a>
+            </SpectrumLink>
+          </Body>
+        </Typography>
+        <Divider size="S" marginTop="size-600" />
+        <Flex direction="row" justifyContent="right">
+          <Button
+            marginY="size-200"
+            variant="primary"
+            onPress={() =>
+              mutation.mutate({
+                escrow,
+                listing,
+                mint,
+              })
+            }
+          >
+            Cancel
+          </Button>
+        </Flex>
+      </Card>
+      <CancelDialog
+        open={dialog}
+        loading={mutation.isLoading}
+        onConfirm={() =>
+          mutation.mutate({
+            escrow,
+            listing,
+            mint,
+          })
+        }
+        onRequestClose={() => setDialog(false)}
+      />
+    </>
   );
 };
 

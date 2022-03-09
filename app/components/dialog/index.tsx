@@ -1,5 +1,4 @@
 import * as anchor from "@project-serum/anchor";
-import type { Listing } from "../../types";
 import {
   Button,
   ButtonGroup,
@@ -12,7 +11,6 @@ import {
   Flex,
   Text,
   View,
-  Link as SpectrumLink,
   ProgressCircle,
 } from "@adobe/react-spectrum";
 

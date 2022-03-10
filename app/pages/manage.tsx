@@ -7,30 +7,34 @@ import {
   View,
   Link as SpectrumLink,
 } from "@adobe/react-spectrum";
-import {
-  useConnection,
-  useAnchorWallet,
-  useWallet,
-} from "@solana/wallet-adapter-react";
+import { useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import type { NextPage } from "next";
-import { useMutation, useQueryClient } from "react-query";
-import { toast } from "react-toastify";
+import { useState } from "react";
 import * as utils from "../utils";
-import * as web3 from "../lib/web3";
 import {
   useLoansQuery,
   useBorrowingsQuery,
   useListingsByOwnerQuery,
 } from "../hooks/query";
+import {
+  useCancelMutation,
+  useRepaymentMutation,
+  useRepossessMutation,
+} from "../hooks/mutation";
 import { ConnectWalletButton } from "../components/button";
 import { Card, CardFlexContainer } from "../components/card";
 import { LoadingPlaceholder } from "../components/progress";
 import { Typography, Body, Heading } from "../components/typography";
 import { Main } from "../components/layout";
+import {
+  CancelDialog,
+  RepayDialog,
+  RepossessDialog,
+} from "../components/dialog";
+import { useRouter } from "next/router";
 
 const Manage: NextPage = () => {
   const { connection } = useConnection();
-  const wallet = useWallet();
   const anchorWallet = useAnchorWallet();
 
   const loansQueryResult = useLoansQuery(connection, anchorWallet);
@@ -172,100 +176,70 @@ const LoanCard: React.FC<LoanCardProps> = ({
   startDate,
   uri,
 }) => {
-  const { connection } = useConnection();
-  const wallet = useWallet();
-  const anchorWallet = useAnchorWallet();
-  const queryClient = useQueryClient();
-
-  const mutation = useMutation(
-    async () => {
-      if (anchorWallet && wallet.publicKey) {
-        const lenderTokenAccount = await web3.getOrCreateTokenAccount(
-          connection,
-          wallet,
-          mint
-        );
-
-        return web3.repossessCollateral(
-          connection,
-          anchorWallet,
-          mint,
-          escrow,
-          lenderTokenAccount,
-          listing
-        );
-      }
-      throw new Error("Not ready");
-    },
-    {
-      onError(err) {
-        console.error(err);
-        if (err instanceof Error) {
-          toast.error("Error: " + err.message);
-        }
-      },
-      onSuccess() {
-        toast.success("NFT repossessed.");
-
-        queryClient.setQueryData(
-          ["loans", anchorWallet?.publicKey.toBase58()],
-          (loans: any[] | undefined) => {
-            if (!loans) return [];
-
-            return loans.filter(
-              (loans) =>
-                loans.listing.publicKey.toBase58() !== listing.toBase58()
-            );
-          }
-        );
-      },
-    }
-  );
+  const router = useRouter();
+  const [dialog, setDialog] = useState(false);
+  const mutation = useRepossessMutation(() => setDialog(false));
 
   return (
-    <Card uri={uri}>
-      <Typography>
-        <Heading size="S">{name}</Heading>
-        <Body size="S">
-          Lending&nbsp;
-          <strong>
-            {amount / anchor.web3.LAMPORTS_PER_SOL}
-            &nbsp;SOL
-          </strong>
-          &nbsp;for&nbsp;
-          {utils.toMonths(duration)}
-          &nbsp;months&nbsp;@&nbsp;
-          <strong>{basisPoints / 100}%</strong>
-          &nbsp;APY.&nbsp;
-          <SpectrumLink>
-            <a
-              href={`https://explorer.solana.com/address/${mint}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              View in Explorer
-            </a>
-          </SpectrumLink>
-        </Body>
-      </Typography>
-      <Divider size="S" marginTop="size-600" />
-      <Flex direction="row" justifyContent="end">
-        {utils.hasExpired(startDate, duration) ? (
+    <>
+      <Card uri={uri}>
+        <Typography>
+          <Heading size="S">{name}</Heading>
+          <Body size="S">
+            Lending&nbsp;
+            <strong>
+              {amount / anchor.web3.LAMPORTS_PER_SOL}
+              &nbsp;SOL
+            </strong>
+            &nbsp;for&nbsp;
+            {utils.toMonths(duration)}
+            &nbsp;months&nbsp;@&nbsp;
+            <strong>{basisPoints / 100}%</strong>
+            &nbsp;APY.
+            <br />
+            <strong>
+              {utils.yieldGenerated(amount, startDate, basisPoints).toFixed(4)}
+            </strong>
+            &nbsp;SOL earned.
+            <br />
+            Repayment due&nbsp;
+            <strong>{utils.getFormattedDueDate(startDate, duration)}</strong>.
+          </Body>
+        </Typography>
+        <Divider size="S" marginTop="size-600" />
+        <Flex direction="row" justifyContent="end">
           <Button
+            variant="secondary"
             marginY="size-200"
-            variant="primary"
-            onPress={() => mutation.mutate()}
+            marginEnd="size-100"
+            onPress={() => router.push(`/listing/${listing.toBase58()}`)}
           >
-            Repossess
+            View
           </Button>
-        ) : (
-          <StatusLight marginY="size-200" marginX="size-50" variant="positive">
-            {utils.yieldGenerated(amount, startDate, basisPoints).toFixed(4)}{" "}
-            SOL earned - due {utils.getFormattedDueDate(startDate, duration)}
-          </StatusLight>
-        )}
-      </Flex>
-    </Card>
+          {utils.hasExpired(startDate, duration) && (
+            <Button
+              marginY="size-200"
+              variant="primary"
+              onPress={() => setDialog(false)}
+            >
+              Repossess
+            </Button>
+          )}
+        </Flex>
+      </Card>
+      <RepossessDialog
+        open={dialog}
+        loading={mutation.isLoading}
+        onConfirm={() =>
+          mutation.mutate({
+            escrow,
+            listing,
+            mint,
+          })
+        }
+        onRequestClose={() => setDialog(false)}
+      />
+    </>
   );
 };
 
@@ -294,86 +268,61 @@ const BorrowingCard: React.FC<BorrowingCardProps> = ({
   startDate,
   uri,
 }) => {
-  const { connection } = useConnection();
-  const anchorWallet = useAnchorWallet();
-  const queryClient = useQueryClient();
-
-  const mutation = useMutation(
-    () => {
-      if (anchorWallet) {
-        return web3.repayLoan(
-          connection,
-          anchorWallet,
-          mint,
-          lender,
-          listing,
-          escrow
-        );
-      }
-      throw new Error("Not ready");
-    },
-    {
-      onError(err) {
-        console.error(err);
-        if (err instanceof Error) {
-          toast.error("Error: " + err.message);
-        }
-      },
-      onSuccess() {
-        toast.success("Loan repaid. Your NFT has been returned to you.");
-
-        queryClient.setQueryData(
-          ["borrowings", anchorWallet?.publicKey.toBase58()],
-          (borrowings: any[] | undefined) => {
-            if (!borrowings) return [];
-
-            return borrowings.filter(
-              (borrowing) =>
-                borrowing.listing.publicKey.toBase58() !== listing.toBase58()
-            );
-          }
-        );
-      },
-    }
-  );
+  const router = useRouter();
+  const [dialog, setDialog] = useState(false);
+  const mutation = useRepaymentMutation(() => setDialog(false));
 
   return (
-    <Card uri={uri}>
-      <Typography>
-        <Heading size="S">{name}</Heading>
-        <Body size="S">
-          Borrowing&nbsp;
-          <strong>
-            {amount / anchor.web3.LAMPORTS_PER_SOL}
-            &nbsp;SOL
-          </strong>
-          &nbsp;for&nbsp;
-          {utils.toMonths(duration)}
-          &nbsp;months&nbsp;@&nbsp;
-          <strong>{basisPoints / 100}%</strong>
-          &nbsp;APY.&nbsp;
-          <SpectrumLink>
-            <a
-              href={`https://explorer.solana.com/address/${mint}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              View in Explorer
-            </a>
-          </SpectrumLink>
-        </Body>
-      </Typography>
-      <Divider size="S" marginTop="size-600" />
-      <Flex direction="row" justifyContent="right">
-        <Button
-          marginY="size-200"
-          variant="primary"
-          onPress={() => mutation.mutate()}
-        >
-          Repay {utils.totalAmount(amount, startDate, basisPoints).toFixed(4)}
-        </Button>
-      </Flex>
-    </Card>
+    <>
+      <Card uri={uri}>
+        <Typography>
+          <Heading size="S">{name}</Heading>
+          <Body size="S">
+            Borrowing&nbsp;
+            <strong>
+              {amount / anchor.web3.LAMPORTS_PER_SOL}
+              &nbsp;SOL
+            </strong>
+            &nbsp;for&nbsp;
+            {utils.toMonths(duration)}
+            &nbsp;months&nbsp;@&nbsp;
+            <strong>{basisPoints / 100}%</strong>
+            &nbsp;APY.&nbsp;
+          </Body>
+        </Typography>
+        <Divider size="S" marginTop="size-600" />
+        <Flex direction="row" justifyContent="right">
+          <Button
+            variant="secondary"
+            marginY="size-200"
+            marginEnd="size-100"
+            onPress={() => router.push(`/listing/${listing.toBase58()}`)}
+          >
+            View
+          </Button>
+          <Button
+            marginY="size-200"
+            variant="primary"
+            onPress={() => setDialog(true)}
+          >
+            Repay {utils.totalAmount(amount, startDate, basisPoints).toFixed(4)}
+          </Button>
+        </Flex>
+      </Card>
+      <RepayDialog
+        open={dialog}
+        loading={mutation.isLoading}
+        onConfirm={() =>
+          mutation.mutate({
+            escrow,
+            lender,
+            listing,
+            mint,
+          })
+        }
+        onRequestClose={() => setDialog(false)}
+      />
+    </>
   );
 };
 
@@ -398,84 +347,66 @@ const ListedCard: React.FC<ListingCardProps> = ({
   name,
   uri,
 }) => {
-  const { connection } = useConnection();
-  const anchorWallet = useAnchorWallet();
-  const queryClient = useQueryClient();
-
-  const mutation = useMutation(
-    () => {
-      if (anchorWallet) {
-        return web3.cancelListing(
-          connection,
-          anchorWallet,
-          mint,
-          listing,
-          escrow
-        );
-      }
-      throw new Error("Not ready");
-    },
-    {
-      onError(err) {
-        console.error(err);
-        if (err instanceof Error) {
-          toast.error("Error: " + err.message);
-        }
-      },
-      onSuccess() {
-        toast.success("Listing cancelled");
-
-        queryClient.setQueryData(
-          ["listings", anchorWallet?.publicKey.toBase58()],
-          (listings: any[] | undefined) => {
-            if (!listings) return [];
-
-            return listings.filter(
-              (item) => item.listing.publicKey.toBase58() !== listing.toBase58()
-            );
-          }
-        );
-      },
-    }
-  );
+  const router = useRouter();
+  const [dialog, setDialog] = useState(false);
+  const mutation = useCancelMutation(() => setDialog(false));
 
   return (
-    <Card uri={uri}>
-      <Typography>
-        <Heading size="S">{name}</Heading>
-        <Body size="S">
-          Borrowing&nbsp;
-          <strong>
-            {amount / anchor.web3.LAMPORTS_PER_SOL}
-            &nbsp;SOL
-          </strong>
-          &nbsp;for&nbsp;
-          {utils.toMonths(duration)}
-          &nbsp;months&nbsp;@&nbsp;
-          <strong>{basisPoints / 100}%</strong>
-          &nbsp;APY.&nbsp;
-          <SpectrumLink>
-            <a
-              href={`https://explorer.solana.com/address/${mint}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              View in Explorer
-            </a>
-          </SpectrumLink>
-        </Body>
-      </Typography>
-      <Divider size="S" marginTop="size-600" />
-      <Flex direction="row" justifyContent="right">
-        <Button
-          marginY="size-200"
-          variant="primary"
-          onPress={() => mutation.mutate()}
-        >
-          Cancel
-        </Button>
-      </Flex>
-    </Card>
+    <>
+      <Card uri={uri}>
+        <Typography>
+          <Heading size="S">{name}</Heading>
+          <Body size="S">
+            Borrowing&nbsp;
+            <strong>
+              {amount / anchor.web3.LAMPORTS_PER_SOL}
+              &nbsp;SOL
+            </strong>
+            &nbsp;for&nbsp;
+            {utils.toMonths(duration)}
+            &nbsp;months&nbsp;@&nbsp;
+            <strong>{basisPoints / 100}%</strong>
+            &nbsp;APY.&nbsp;
+          </Body>
+        </Typography>
+        <Divider size="S" marginTop="size-600" />
+        <Flex direction="row" justifyContent="right">
+          <Button
+            variant="secondary"
+            marginY="size-200"
+            marginEnd="size-100"
+            onPress={() => router.push(`/listing/${listing.toBase58()}`)}
+          >
+            View
+          </Button>
+          <Button
+            marginY="size-200"
+            variant="primary"
+            onPress={() =>
+              mutation.mutate({
+                escrow,
+                listing,
+                mint,
+              })
+            }
+          >
+            Cancel
+          </Button>
+        </Flex>
+      </Card>
+      <CancelDialog
+        open={dialog}
+        loading={mutation.isLoading}
+        onConfirm={() =>
+          mutation.mutate({
+            escrow,
+            listing,
+            mint,
+          })
+        }
+        onRequestClose={() => setDialog(false)}
+      />
+    </>
   );
 };
 

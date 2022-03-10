@@ -73,7 +73,7 @@ const Borrow: NextPage = () => {
                   <Flex direction="row" justifyContent="right">
                     <Button
                       marginY="size-200"
-                      variant="primary"
+                      variant="cta"
                       onPress={() => setDialog(nft)}
                     >
                       List
@@ -105,8 +105,6 @@ const BorrowDialog: React.FC<BorrowDialogProps> = ({ nft, setDialog }) => {
   const { connection } = useConnection();
   const anchorWallet = useAnchorWallet();
   const queryClient = useQueryClient();
-
-  const form = useForm<FormFields>();
 
   const metadataFileQuery = useMetadataFileQuery(nft?.metadata.data?.data?.uri);
 
@@ -161,6 +159,72 @@ const BorrowDialog: React.FC<BorrowDialogProps> = ({ nft, setDialog }) => {
     }
   );
 
+  const { control, handleSubmit } = useForm<FormFields>({
+    mode: "onChange",
+  });
+
+  function onSubmit() {
+    handleSubmit((data) => mutation.mutate(data))();
+  }
+
+  const listingForm = (
+    <Form>
+      <Controller
+        control={control}
+        name="amountSOL"
+        rules={{
+          required: true,
+        }}
+        render={({ field: { ref, onChange }, fieldState: { error } }) => (
+          <NumberField
+            label="Amount"
+            minValue={0.1}
+            formatOptions={{
+              currency: "SOL",
+            }}
+            validationState={error ? "invalid" : undefined}
+            ref={ref}
+            onChange={onChange}
+          />
+        )}
+      />
+      <Controller
+        control={control}
+        name="returnAPY"
+        rules={{ required: true }}
+        render={({ field: { ref, onChange }, fieldState: { error } }) => (
+          <NumberField
+            label="APY"
+            formatOptions={{
+              maximumFractionDigits: 1,
+              style: "percent",
+            }}
+            minValue={0.05}
+            ref={ref}
+            validationState={error ? "invalid" : undefined}
+            onChange={onChange}
+          />
+        )}
+      />
+      <Controller
+        control={control}
+        name="durationMonths"
+        rules={{ required: true }}
+        render={({ field: { ref, onChange }, fieldState: { error } }) => (
+          <NumberField
+            label="Duration (months)"
+            minValue={1}
+            maxValue={24}
+            step={1}
+            ref={ref}
+            validationState={error ? "invalid" : undefined}
+            onChange={onChange}
+          />
+        )}
+      />
+    </Form>
+  );
+
   return (
     <DialogContainer onDismiss={() => setDialog(null)}>
       {nft && (
@@ -183,68 +247,7 @@ const BorrowDialog: React.FC<BorrowDialogProps> = ({ nft, setDialog }) => {
                 />
               </Flex>
             ) : (
-              <Form
-                validationState="invalid"
-                onSubmit={form.handleSubmit((data) => mutation.mutate(data))}
-              >
-                <Controller
-                  control={form.control}
-                  name="amountSOL"
-                  rules={{ required: true }}
-                  render={({
-                    field: { onChange },
-                    fieldState: { invalid },
-                  }) => (
-                    <NumberField
-                      label="Amount"
-                      minValue={0.1}
-                      formatOptions={{
-                        currency: "SOL",
-                      }}
-                      validationState={invalid ? "invalid" : undefined}
-                      onChange={onChange}
-                    />
-                  )}
-                />
-                <Controller
-                  control={form.control}
-                  name="returnAPY"
-                  rules={{ required: true }}
-                  render={({
-                    field: { onChange },
-                    fieldState: { invalid },
-                  }) => (
-                    <NumberField
-                      label="APY"
-                      formatOptions={{
-                        maximumFractionDigits: 1,
-                        style: "percent",
-                      }}
-                      minValue={0.05}
-                      validationState={invalid ? "invalid" : undefined}
-                      onChange={onChange}
-                    />
-                  )}
-                />
-                <Controller
-                  control={form.control}
-                  name="durationMonths"
-                  rules={{ required: true }}
-                  render={({
-                    field: { onChange },
-                    fieldState: { invalid },
-                  }) => (
-                    <NumberField
-                      label="Duration (months)"
-                      minValue={1}
-                      maxValue={24}
-                      step={1}
-                      validationState={invalid ? "invalid" : undefined}
-                      onChange={onChange}
-                    />
-                  )}
-                />
-              </Form>
+              listingForm
             )}
           </Content>
           <ButtonGroup>
@@ -258,7 +261,7 @@ const BorrowDialog: React.FC<BorrowDialogProps> = ({ nft, setDialog }) => {
             <Button
               isDisabled={mutation.isLoading}
               variant="cta"
-              onPress={() => mutation.mutate(form.getValues())}
+              onPress={onSubmit}
             >
               Submit
             </Button>

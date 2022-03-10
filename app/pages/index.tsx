@@ -1,97 +1,30 @@
 import * as anchor from "@project-serum/anchor";
-import {
-  Button,
-  ButtonGroup,
-  Content,
-  Dialog,
-  DialogContainer,
-  Divider,
-  Heading as DialogHeading,
-  Header,
-  Flex,
-  Text,
-  View,
-  Link as SpectrumLink,
-  ProgressCircle,
-} from "@adobe/react-spectrum";
+import { Button, Divider, Flex } from "@adobe/react-spectrum";
 import { useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import type { NextPage } from "next";
+import { useRouter } from "next/router";
 import { useState } from "react";
-import { useMutation, useQueryClient } from "react-query";
-import { toast } from "react-toastify";
+
+import type { Listing } from "../types";
 import * as utils from "../utils";
-import * as web3 from "../lib/web3";
 import { useListingsQuery } from "../hooks/query";
 import { useWalletConnect } from "../components/button";
 import { Card, CardFlexContainer } from "../components/card";
 import { LoadingPlaceholder } from "../components/progress";
 import { Body, Heading, Typography } from "../components/typography";
 import { Main } from "../components/layout";
-
-interface Listing {
-  publicKey: anchor.web3.PublicKey;
-  account: {
-    amount: anchor.BN;
-    basisPoints: number;
-    borrower: anchor.web3.PublicKey;
-    duration: anchor.BN;
-    escrow: anchor.web3.PublicKey;
-    mint: anchor.web3.PublicKey;
-    state: number;
-  };
-}
+import { LoanDialog } from "../components/dialog";
+import { useLoanMutation } from "../hooks/mutation";
 
 const Listings: NextPage = () => {
   const { connection } = useConnection();
   const anchorWallet = useAnchorWallet();
   const [handleConnect] = useWalletConnect();
-  const queryClient = useQueryClient();
   const queryResult = useListingsQuery(connection);
+  const router = useRouter();
 
   const [selectedListing, setDialog] = useState<Listing | null>(null);
-
-  const mutation = useMutation(
-    () => {
-      if (anchorWallet && selectedListing) {
-        return web3.createLoan(
-          connection,
-          anchorWallet,
-          selectedListing.account.mint,
-          selectedListing.account.borrower,
-          selectedListing.publicKey
-        );
-      }
-      throw new Error("Not ready");
-    },
-    {
-      onSuccess() {
-        queryClient.setQueryData(["listings"], (data: any) => {
-          if (data) {
-            return data?.filter(
-              (item: any) =>
-                item.listing.publicKey.toBase58() !==
-                selectedListing?.publicKey.toBase58()
-            );
-          }
-        });
-
-        queryClient.invalidateQueries([
-          "loans",
-          anchorWallet?.publicKey.toBase58(),
-        ]);
-
-        setDialog(null);
-
-        toast.success("Listing created");
-      },
-      onError(err) {
-        console.error(err);
-        if (err instanceof Error) {
-          toast.error("Error: " + err.message);
-        }
-      },
-    }
-  );
+  const mutation = useLoanMutation(() => setDialog(null));
 
   async function onCreateLoan(item: any) {
     if (anchorWallet) {
@@ -133,20 +66,23 @@ const Listings: NextPage = () => {
                         <strong>
                           {item.listing.account.basisPoints / 100}%
                         </strong>
-                        &nbsp;APY.{" "}
-                        <SpectrumLink>
-                          <a
-                            href={`https://explorer.solana.com/address/${item.listing.account.mint.toBase58()}`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            View in Explorer
-                          </a>
-                        </SpectrumLink>
+                        &nbsp;APY.
                       </Body>
                     </Typography>
                     <Divider size="S" marginTop="size-600" />
                     <Flex direction="row" justifyContent="end">
+                      <Button
+                        variant="secondary"
+                        marginY="size-200"
+                        marginEnd="size-100"
+                        onPress={() =>
+                          router.push(
+                            `/listing/${item.listing.publicKey.toBase58()}`
+                          )
+                        }
+                      >
+                        View
+                      </Button>
                       <Button
                         variant="cta"
                         marginY="size-200"
@@ -161,60 +97,23 @@ const Listings: NextPage = () => {
           </CardFlexContainer>
         </Main>
       )}
-      <DialogContainer onDismiss={() => setDialog(null)}>
-        {selectedListing && (
-          <Dialog>
-            <DialogHeading>Loan</DialogHeading>
-            <Header>
-              Lending&nbsp;
-              <strong>
-                {selectedListing.account.amount.toNumber() /
-                  anchor.web3.LAMPORTS_PER_SOL}{" "}
-                SOL
-              </strong>
-              &nbsp;@&nbsp;
-              <strong>{selectedListing.account.basisPoints / 100}% APY</strong>
-            </Header>
-            <Content>
-              {mutation.isLoading ? (
-                <Flex direction="row" justifyContent="center" width="100%">
-                  <ProgressCircle
-                    isIndeterminate
-                    aria-label="Loading…"
-                    marginY="size-200"
-                  />
-                </Flex>
-              ) : (
-                <View>
-                  <Text>
-                    This loan may be repaid in full at any time. Interest will
-                    be calculated on a pro-rata basis. If the borrower fails to
-                    repay the loan before the expiry date, you may exercise the
-                    right to repossess the NFT.
-                  </Text>
-                </View>
-              )}
-            </Content>
-            <Divider />
-            <ButtonGroup>
-              <Button
-                isDisabled={mutation.isLoading}
-                variant="secondary"
-                onPress={() => setDialog(null)}
-              >
-                Cancel
-              </Button>
-              <Button
-                isDisabled={mutation.isLoading}
-                variant="cta"
-                onPress={() => mutation.mutate()}
-              >
-                Confirm
-              </Button>
-            </ButtonGroup>
-          </Dialog>
-        )}
-      </DialogContainer>
+
+      <LoanDialog
+        open={Boolean(selectedListing)}
+        amount={selectedListing?.account.amount.toNumber() ?? 0}
+        basisPoints={selectedListing?.account.basisPoints ?? 0}
+        loading={mutation.isLoading}
+        onRequestClose={() => setDialog(null)}
+        onConfirm={() => {
+          if (selectedListing) {
+            mutation.mutate({
+              mint: selectedListing.account.mint,
+              borrower: selectedListing.account.borrower,
+              listing: selectedListing.publicKey,
+            });
+          }
+        }}
+      />
     </>
   );
 };

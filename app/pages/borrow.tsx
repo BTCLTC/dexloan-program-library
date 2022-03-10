@@ -118,7 +118,7 @@ const BorrowDialog: React.FC<BorrowDialogProps> = ({ nft, setDialog }) => {
         const listingOptions = {
           amount: variables.amountSOL * anchor.web3.LAMPORTS_PER_SOL,
           basisPoints: variables.returnAPY * 10000,
-          duration: 60, // variables.durationMonths * 30 * 24 * 60 * 60,
+          duration: variables.durationMonths * 30 * 24 * 60 * 60,
         };
 
         return web3.createListing(

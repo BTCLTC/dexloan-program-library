@@ -116,7 +116,7 @@ const Listing: NextPage = () => {
     if (
       listing &&
       pubkey &&
-      pubkey.toBase58() === listing?.borrower.toBase58()
+      anchorWallet?.publicKey.toBase58() === listing?.borrower.toBase58()
     ) {
       return (
         <CancelButton
@@ -125,7 +125,7 @@ const Listing: NextPage = () => {
           listing={pubkey}
         />
       );
-    } else if (listing && pubkey) {
+    } else if (listing && pubkey && anchorWallet) {
       return (
         <LoanButton
           listing={pubkey}

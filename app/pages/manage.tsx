@@ -186,6 +186,7 @@ const LoanCard: React.FC<LoanCardProps> = ({
   startDate,
   uri,
 }) => {
+  const router = useRouter();
   const [dialog, setDialog] = useState(false);
   const mutation = useRepossessMutation(() => setDialog(false));
 
@@ -204,22 +205,28 @@ const LoanCard: React.FC<LoanCardProps> = ({
             {utils.toMonths(duration)}
             &nbsp;months&nbsp;@&nbsp;
             <strong>{basisPoints / 100}%</strong>
-            &nbsp;APY.&nbsp;
-          </Body>
-          <Body>
-            <StatusLight
-              marginY="size-200"
-              marginX="size-50"
-              variant="positive"
-            >
-              {utils.yieldGenerated(amount, startDate, basisPoints).toFixed(4)}{" "}
-              SOL earned - due {utils.getFormattedDueDate(startDate, duration)}
-            </StatusLight>
+            &nbsp;APY.
+            <br />
+            <strong>
+              {utils.yieldGenerated(amount, startDate, basisPoints).toFixed(4)}
+            </strong>
+            &nbsp;SOL earned.
+            <br />
+            Repayment due&nbsp;
+            <strong>{utils.getFormattedDueDate(startDate, duration)}</strong>.
           </Body>
         </Typography>
         <Divider size="S" marginTop="size-600" />
         <Flex direction="row" justifyContent="end">
-          {utils.hasExpired(startDate, duration) ? (
+          <Button
+            variant="secondary"
+            marginY="size-200"
+            marginEnd="size-100"
+            onPress={() => router.push(`/listing/${listing.toBase58()}`)}
+          >
+            View
+          </Button>
+          {utils.hasExpired(startDate, duration) && (
             <Button
               marginY="size-200"
               variant="primary"
@@ -227,15 +234,6 @@ const LoanCard: React.FC<LoanCardProps> = ({
             >
               Repossess
             </Button>
-          ) : (
-            <StatusLight
-              marginY="size-200"
-              marginX="size-50"
-              variant="positive"
-            >
-              {utils.yieldGenerated(amount, startDate, basisPoints).toFixed(4)}{" "}
-              SOL earned - due {utils.getFormattedDueDate(startDate, duration)}
-            </StatusLight>
           )}
         </Flex>
       </Card>
@@ -300,15 +298,6 @@ const BorrowingCard: React.FC<BorrowingCardProps> = ({
             &nbsp;months&nbsp;@&nbsp;
             <strong>{basisPoints / 100}%</strong>
             &nbsp;APY.&nbsp;
-            <SpectrumLink>
-              <a
-                href={`https://explorer.solana.com/address/${mint}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                View in Explorer
-              </a>
-            </SpectrumLink>
           </Body>
         </Typography>
         <Divider size="S" marginTop="size-600" />
@@ -388,15 +377,6 @@ const ListedCard: React.FC<ListingCardProps> = ({
             &nbsp;months&nbsp;@&nbsp;
             <strong>{basisPoints / 100}%</strong>
             &nbsp;APY.&nbsp;
-            <SpectrumLink>
-              <a
-                href={`https://explorer.solana.com/address/${mint}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                View in Explorer
-              </a>
-            </SpectrumLink>
           </Body>
         </Typography>
         <Divider size="S" marginTop="size-600" />

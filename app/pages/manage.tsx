@@ -31,6 +31,7 @@ import {
   RepayDialog,
   RepossessDialog,
 } from "../components/dialog";
+import { useRouter } from "next/router";
 
 const Manage: NextPage = () => {
   const { connection } = useConnection();
@@ -204,15 +205,16 @@ const LoanCard: React.FC<LoanCardProps> = ({
             &nbsp;months&nbsp;@&nbsp;
             <strong>{basisPoints / 100}%</strong>
             &nbsp;APY.&nbsp;
-            <SpectrumLink>
-              <a
-                href={`https://explorer.solana.com/address/${mint}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                View in Explorer
-              </a>
-            </SpectrumLink>
+          </Body>
+          <Body>
+            <StatusLight
+              marginY="size-200"
+              marginX="size-50"
+              variant="positive"
+            >
+              {utils.yieldGenerated(amount, startDate, basisPoints).toFixed(4)}{" "}
+              SOL earned - due {utils.getFormattedDueDate(startDate, duration)}
+            </StatusLight>
           </Body>
         </Typography>
         <Divider size="S" marginTop="size-600" />
@@ -278,6 +280,7 @@ const BorrowingCard: React.FC<BorrowingCardProps> = ({
   startDate,
   uri,
 }) => {
+  const router = useRouter();
   const [dialog, setDialog] = useState(false);
   const mutation = useRepaymentMutation(() => setDialog(false));
 
@@ -310,6 +313,14 @@ const BorrowingCard: React.FC<BorrowingCardProps> = ({
         </Typography>
         <Divider size="S" marginTop="size-600" />
         <Flex direction="row" justifyContent="right">
+          <Button
+            variant="secondary"
+            marginY="size-200"
+            marginEnd="size-100"
+            onPress={() => router.push(`/listing/${listing.toBase58()}`)}
+          >
+            View
+          </Button>
           <Button
             marginY="size-200"
             variant="primary"
@@ -357,6 +368,7 @@ const ListedCard: React.FC<ListingCardProps> = ({
   name,
   uri,
 }) => {
+  const router = useRouter();
   const [dialog, setDialog] = useState(false);
   const mutation = useCancelMutation(() => setDialog(false));
 
@@ -389,6 +401,14 @@ const ListedCard: React.FC<ListingCardProps> = ({
         </Typography>
         <Divider size="S" marginTop="size-600" />
         <Flex direction="row" justifyContent="right">
+          <Button
+            variant="secondary"
+            marginY="size-200"
+            marginEnd="size-100"
+            onPress={() => router.push(`/listing/${listing.toBase58()}`)}
+          >
+            View
+          </Button>
           <Button
             marginY="size-200"
             variant="primary"

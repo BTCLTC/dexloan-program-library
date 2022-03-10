@@ -73,7 +73,7 @@ const Borrow: NextPage = () => {
                   <Flex direction="row" justifyContent="right">
                     <Button
                       marginY="size-200"
-                      variant="primary"
+                      variant="cta"
                       onPress={() => setDialog(nft)}
                     >
                       List

@@ -1,10 +1,5 @@
 import * as anchor from "@project-serum/anchor";
-import {
-  Button,
-  Divider,
-  Flex,
-  Link as SpectrumLink,
-} from "@adobe/react-spectrum";
+import { Button, Divider, Flex } from "@adobe/react-spectrum";
 import { useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import type { NextPage } from "next";
 import { useRouter } from "next/router";
@@ -71,16 +66,7 @@ const Listings: NextPage = () => {
                         <strong>
                           {item.listing.account.basisPoints / 100}%
                         </strong>
-                        &nbsp;APY.{" "}
-                        <SpectrumLink>
-                          <a
-                            href={`https://explorer.solana.com/address/${item.listing.account.mint.toBase58()}`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            View in Explorer
-                          </a>
-                        </SpectrumLink>
+                        &nbsp;APY.
                       </Body>
                     </Typography>
                     <Divider size="S" marginTop="size-600" />

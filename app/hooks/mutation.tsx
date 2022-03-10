@@ -4,7 +4,7 @@ import {
   useWallet,
 } from "@solana/wallet-adapter-react";
 import * as anchor from "@project-serum/anchor";
-import { useMutation, useQueryClient } from "react-query";
+import { QueryClient, useMutation, useQueryClient } from "react-query";
 import { toast } from "react-toastify";
 
 import * as web3 from "../lib/web3";
@@ -64,19 +64,10 @@ export const useRepossessMutation = (onSuccess: () => void) => {
           }
         );
 
-        queryClient.setQueryData(
-          ["listing", variables.listing.toBase58()],
-          (data: any) => {
-            if (data) {
-              return {
-                ...data,
-                listing: {
-                  ...data.listing,
-                  status: web3.ListingState.Defaulted,
-                },
-              };
-            }
-          }
+        setListingState(
+          queryClient,
+          variables.listing,
+          web3.ListingState.Defaulted
         );
 
         onSuccess();
@@ -131,19 +122,10 @@ export const useRepaymentMutation = (onSuccess: () => void) => {
           }
         );
 
-        queryClient.setQueryData(
-          ["listing", variables.listing.toBase58()],
-          (data: any) => {
-            if (data) {
-              return {
-                ...data,
-                listing: {
-                  ...data.listing,
-                  status: web3.ListingState.Repaid,
-                },
-              };
-            }
-          }
+        setListingState(
+          queryClient,
+          variables.listing,
+          web3.ListingState.Repaid
         );
 
         onSuccess();
@@ -180,7 +162,6 @@ export const useCancelMutation = (onSuccess: () => void) => {
         }
       },
       onSuccess(_, variables) {
-        console.log("success!");
         toast.success("Listing cancelled");
 
         queryClient.setQueryData(
@@ -196,19 +177,10 @@ export const useCancelMutation = (onSuccess: () => void) => {
           }
         );
 
-        queryClient.setQueryData(
-          ["listing", variables.listing.toBase58()],
-          (data: any) => {
-            if (data) {
-              return {
-                ...data,
-                listing: {
-                  ...data.listing,
-                  status: web3.ListingState.Active,
-                },
-              };
-            }
-          }
+        setListingState(
+          queryClient,
+          variables.listing,
+          web3.ListingState.Cancelled
         );
 
         onSuccess();
@@ -243,6 +215,8 @@ export const useLoanMutation = (onSuccess: () => void) => {
     },
     {
       onSuccess(_, variables) {
+        toast.success("Listing created");
+
         queryClient.setQueryData(["listings"], (data: any) => {
           if (data) {
             return data?.filter(
@@ -253,12 +227,17 @@ export const useLoanMutation = (onSuccess: () => void) => {
           }
         });
 
+        setListingState(
+          queryClient,
+          variables.listing,
+          web3.ListingState.Active
+        );
+
         queryClient.invalidateQueries([
           "loans",
           anchorWallet?.publicKey.toBase58(),
         ]);
 
-        toast.success("Listing created");
         onSuccess();
       },
       onError(err) {
@@ -270,3 +249,22 @@ export const useLoanMutation = (onSuccess: () => void) => {
     }
   );
 };
+
+function setListingState(
+  queryClient: QueryClient,
+  listing: anchor.web3.PublicKey,
+  state: web3.ListingState
+) {
+  queryClient.setQueryData(["listing", listing.toBase58()], (data: any) => {
+    console.log("data ?? ", data);
+    if (data) {
+      return {
+        ...data,
+        listing: {
+          ...data.listing,
+          state,
+        },
+      };
+    }
+  });
+}

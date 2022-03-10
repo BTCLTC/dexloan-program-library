@@ -256,7 +256,6 @@ function setListingState(
   state: web3.ListingState
 ) {
   queryClient.setQueryData(["listing", listing.toBase58()], (data: any) => {
-    console.log("data ?? ", data);
     if (data) {
       return {
         ...data,

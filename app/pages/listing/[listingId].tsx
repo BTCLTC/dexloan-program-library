@@ -42,7 +42,7 @@ const Listing: NextPage = () => {
     ? new anchor.web3.PublicKey(listingId as string)
     : undefined;
   const listingQuery = useListingQuery(connection, pubkey);
-  console.log("listingQuery", listingQuery);
+
   if (listingQuery.isLoading) {
     return <LoadingPlaceholder />;
   }

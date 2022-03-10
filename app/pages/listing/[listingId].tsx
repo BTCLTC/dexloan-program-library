@@ -42,7 +42,7 @@ const Listing: NextPage = () => {
     ? new anchor.web3.PublicKey(listingId as string)
     : undefined;
   const listingQuery = useListingQuery(connection, pubkey);
-
+  console.log("listingQuery", listingQuery);
   if (listingQuery.isLoading) {
     return <LoadingPlaceholder />;
   }
@@ -53,6 +53,12 @@ const Listing: NextPage = () => {
   const hasExpired =
     listing &&
     utils.hasExpired(listing.startDate.toNumber(), listing.duration.toNumber());
+
+  const isLender =
+    listing && listing.lender.toBase58() === anchorWallet?.publicKey.toBase58();
+  const isBorrower =
+    listing &&
+    listing.borrower.toBase58() === anchorWallet?.publicKey.toBase58();
 
   function getRepaymentText() {
     if (listing) {
@@ -81,11 +87,7 @@ const Listing: NextPage = () => {
   }
 
   function renderActiveButton() {
-    if (
-      listing &&
-      pubkey &&
-      anchorWallet?.publicKey.toBase58() === listing?.borrower.toBase58()
-    ) {
+    if (listing && pubkey && isBorrower) {
       return (
         <RepayButton
           escrow={listing.escrow}
@@ -94,12 +96,7 @@ const Listing: NextPage = () => {
           lender={listing.lender}
         />
       );
-    } else if (
-      hasExpired &&
-      listing &&
-      pubkey &&
-      anchorWallet?.publicKey.toBase58() === listing?.lender.toBase58()
-    ) {
+    } else if (hasExpired && listing && pubkey && isLender) {
       return (
         <RepossessButton
           escrow={listing.escrow}
@@ -113,11 +110,7 @@ const Listing: NextPage = () => {
   }
 
   function renderListedButton() {
-    if (
-      listing &&
-      pubkey &&
-      anchorWallet?.publicKey.toBase58() === listing?.borrower.toBase58()
-    ) {
+    if (listing && pubkey && isBorrower) {
       return (
         <CancelButton
           escrow={listing.escrow}
@@ -125,7 +118,7 @@ const Listing: NextPage = () => {
           listing={pubkey}
         />
       );
-    } else if (listing && pubkey && anchorWallet) {
+    } else if (listing && pubkey) {
       return (
         <LoanButton
           listing={pubkey}
@@ -185,7 +178,7 @@ const Listing: NextPage = () => {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    View in Explorer
+                    View mint
                   </a>
                 </SpectrumLink>
               </Body>
@@ -199,7 +192,7 @@ const Listing: NextPage = () => {
           <>
             <View paddingBottom="size-100">
               <Body>
-                Borrowing&nbsp;
+                {isLender ? "Lending" : "Borrowing"}&nbsp;
                 <strong>
                   {listing.amount.toNumber() / anchor.web3.LAMPORTS_PER_SOL}
                   &nbsp;SOL
@@ -231,7 +224,7 @@ const Listing: NextPage = () => {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    View in Explorer
+                    View mint
                   </a>
                 </SpectrumLink>
               </Body>
@@ -429,7 +422,7 @@ const RepossessButton = ({ mint, escrow, listing }: RepossessButtonProps) => {
   return (
     <>
       <Button variant="cta" minWidth="size-2000" onPress={() => onRepossess()}>
-        Repossess Loan
+        Repossess NFT
       </Button>
       <RepossessDialog
         open={dialog}

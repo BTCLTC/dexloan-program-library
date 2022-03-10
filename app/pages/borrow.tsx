@@ -161,7 +161,6 @@ const BorrowDialog: React.FC<BorrowDialogProps> = ({ nft, setDialog }) => {
 
   const { control, handleSubmit } = useForm<FormFields>({
     mode: "onChange",
-    shouldUnregister: true,
   });
 
   function onSubmit() {

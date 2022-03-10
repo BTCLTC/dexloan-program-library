@@ -203,7 +203,7 @@ export const useLoanMutation = (onSuccess: () => void) => {
   return useMutation<void, Error, LoanMutationProps>(
     async ({ mint, borrower, listing }) => {
       if (anchorWallet) {
-        await web3.createLoan(
+        return web3.createLoan(
           connection,
           anchorWallet,
           mint,

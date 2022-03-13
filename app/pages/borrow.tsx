@@ -19,6 +19,7 @@ import {
   useWallet,
   useAnchorWallet,
 } from "@solana/wallet-adapter-react";
+import BigDecimal from "js-big-decimal";
 import type { NextPage } from "next";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "react-query";
@@ -117,7 +118,11 @@ const BorrowDialog: React.FC<BorrowDialogProps> = ({ nft, setDialog }) => {
       ) {
         const listingOptions = {
           amount: variables.amountSOL * anchor.web3.LAMPORTS_PER_SOL,
-          basisPoints: variables.returnAPY * 10000,
+          basisPoints: parseInt(
+            new BigDecimal(variables.returnAPY)
+              .multiply(new BigDecimal("10000"))
+              .getValue()
+          ),
           duration: variables.durationMonths * 30 * 24 * 60 * 60,
         };
 

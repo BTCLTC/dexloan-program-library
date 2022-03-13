@@ -14,6 +14,7 @@ import { AppProps } from "next/app";
 import Head from "next/head";
 import { useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
+import { ReactQueryDevtools } from "react-query/devtools";
 import { ToastContainer } from "react-toastify";
 import { Nav } from "../components/nav";
 import "react-toastify/dist/ReactToastify.css";
@@ -49,6 +50,7 @@ function MyApp({ Component, pageProps }: AppProps) {
               <ToastContainer closeButton={CloseIcon} />
             </WalletProvider>
           </ConnectionProvider>
+          <ReactQueryDevtools />
         </QueryClientProvider>
       </SpectrumProvider>
     </SSRProvider>

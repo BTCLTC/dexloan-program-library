@@ -67,9 +67,9 @@ export async function getListings(
 
   const whitelist = (await import("../public/whitelist.json")).default;
 
-  const filteredListings = listings.filter((listing) =>
-    whitelist.includes(listing.account.mint.toBase58())
-  );
+  const filteredListings = listings
+    .filter((listing) => whitelist.includes(listing.account.mint.toBase58()))
+    .sort((a, b) => a.account.amount.toNumber() - b.account.amount.toNumber());
 
   const metadataAddresses = await Promise.all(
     filteredListings.map((listing) => Metadata.getPDA(listing.account.mint))
@@ -266,22 +266,19 @@ export async function cancelListing(
   const provider = getProvider(connection, wallet as typeof anchor.Wallet);
   const program = getProgram(provider);
 
-  const [borrowerDepositTokenAccount] =
-    await anchor.web3.PublicKey.findProgramAddress(
-      [
-        wallet.publicKey.toBuffer(),
-        splToken.TOKEN_PROGRAM_ID.toBuffer(),
-        mint.toBuffer(),
-      ],
-      splToken.ASSOCIATED_TOKEN_PROGRAM_ID
-    );
+  const tokenAccount = await connection.getTokenAccountsByOwner(
+    wallet.publicKey,
+    {
+      mint,
+    }
+  );
 
   await program.rpc.cancelListing({
     accounts: {
       escrowAccount,
       listingAccount,
       mint,
-      borrowerDepositTokenAccount,
+      borrowerDepositTokenAccount: tokenAccount.value[0].pubkey,
       borrower: wallet.publicKey,
       systemProgram: anchor.web3.SystemProgram.programId,
       tokenProgram: splToken.TOKEN_PROGRAM_ID,

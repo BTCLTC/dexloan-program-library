@@ -220,7 +220,7 @@ const LoanCard: React.FC<LoanCardProps> = ({
             <Button
               marginY="size-200"
               variant="primary"
-              onPress={() => setDialog(false)}
+              onPress={() => setDialog(true)}
             >
               Repossess
             </Button>

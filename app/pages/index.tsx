@@ -17,11 +17,11 @@ import { LoanDialog } from "../components/dialog";
 import { useLoanMutation } from "../hooks/mutation";
 
 const Listings: NextPage = () => {
+  const router = useRouter();
   const { connection } = useConnection();
   const anchorWallet = useAnchorWallet();
   const [handleConnect] = useWalletConnect();
   const queryResult = useListingsQuery(connection);
-  const router = useRouter();
 
   const [selectedListing, setDialog] = useState<Listing | null>(null);
   const mutation = useLoanMutation(() => setDialog(null));

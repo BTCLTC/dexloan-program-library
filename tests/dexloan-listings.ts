@@ -106,9 +106,6 @@ describe("dexloan_listings", () => {
       },
     });
 
-    const listing = await borrower.program.account.listing.fetch(
-      borrower.listingAccount
-    );
     const lenderPostRepaymentBalance = await connection.getBalance(
       lender.keypair.publicKey
     );
@@ -116,13 +113,12 @@ describe("dexloan_listings", () => {
       borrower.associatedAddress.address
     );
     const escrowTokenAccount = await borrower.mint.getAccountInfo(
-      listing.escrow
+      borrower.escrowAccount
     );
 
     assert.equal(borrowerTokenAccount.amount.toNumber(), 1);
     assert.equal(escrowTokenAccount.amount.toNumber(), 0);
     assert(lenderPostRepaymentBalance > lenderPreRepaymentBalance);
-    assert.equal(listing.state, 3);
   });
 
   it("Allows loans to be cancelled", async () => {
@@ -145,19 +141,15 @@ describe("dexloan_listings", () => {
       },
     });
 
-    const listing = await borrower.program.account.listing.fetch(
-      borrower.listingAccount
-    );
     const borrowerTokenAccount = await borrower.mint.getAccountInfo(
       borrower.associatedAddress.address
     );
     const escrowTokenAccount = await borrower.mint.getAccountInfo(
-      listing.escrow
+      borrower.escrowAccount
     );
 
     assert.equal(borrowerTokenAccount.amount.toNumber(), 1);
     assert.equal(escrowTokenAccount.amount.toNumber(), 0);
-    assert.equal(listing.state, 4);
   });
 
   it("Allows loans an overdue loan to be repossessed", async () => {
@@ -214,6 +206,64 @@ describe("dexloan_listings", () => {
     assert.equal(escrowTokenAccount.amount.toNumber(), 0);
     assert.equal(lenderTokenAccount.amount.toNumber(), 1);
     assert.equal(defaultedListing.state, 5);
+  });
+
+  it("Will allow accounts to be closed once overdue loans are repossessed", async () => {
+    const options = {
+      amount: anchor.web3.LAMPORTS_PER_SOL,
+      basisPoints: 500,
+      duration: 1, // 1 second
+    };
+    const borrower = await helpers.initListing(connection, options);
+
+    const lender = await helpers.createLoan(connection, borrower);
+
+    await wait(1); // ensure 1 second passes
+
+    const listing = await borrower.program.account.listing.fetch(
+      borrower.listingAccount
+    );
+
+    const token = new splToken.Token(
+      lender.provider.connection,
+      listing.mint,
+      splToken.TOKEN_PROGRAM_ID,
+      lender.keypair
+    );
+
+    const tokenAccountInfo = await token.getOrCreateAssociatedAccountInfo(
+      lender.keypair.publicKey
+    );
+
+    await lender.program.rpc.repossessCollateral({
+      accounts: {
+        escrowAccount: listing.escrow,
+        lender: lender.keypair.publicKey,
+        lenderTokenAccount: tokenAccountInfo.address,
+        listingAccount: borrower.listingAccount,
+        mint: listing.mint,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        tokenProgram: splToken.TOKEN_PROGRAM_ID,
+        clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
+        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+      },
+    });
+
+    await borrower.program.rpc.closeAccount({
+      accounts: {
+        borrower: borrower.keypair.publicKey,
+        listingAccount: borrower.listingAccount,
+      },
+    });
+
+    try {
+      await borrower.program.account.listing.fetch(borrower.listingAccount);
+    } catch (err) {
+      assert.equal(
+        err.message,
+        `Account does not exist ${borrower.listingAccount.toBase58()}`
+      );
+    }
   });
 
   it("Will not allow a loan to be repossessed if not overdue", async () => {
@@ -336,7 +386,7 @@ describe("dexloan_listings", () => {
     }
   });
 
-  it("Will not allow an active listing to be relisted", async () => {
+  it("Will NOT allow an active listing to be reinitialized", async () => {
     const options = {
       amount: anchor.web3.LAMPORTS_PER_SOL,
       basisPoints: 500,
@@ -355,7 +405,7 @@ describe("dexloan_listings", () => {
     listingOptions.duration = new anchor.BN(options.duration);
 
     try {
-      await borrower.program.rpc.makeListing(listingOptions, {
+      await borrower.program.rpc.initListing(listingOptions, {
         accounts: {
           borrower: borrower.keypair.publicKey,
           borrowerDepositTokenAccount: borrower.associatedAddress.address,
@@ -369,11 +419,14 @@ describe("dexloan_listings", () => {
       });
       assert.ok(false);
     } catch (error) {
-      assert.equal(error.toString(), "Invalid state");
+      assert.equal(
+        error.toString(),
+        "Error: failed to send transaction: Transaction simulation failed: Error processing Instruction 0: Cross-program invocation with unauthorized signer or writable account"
+      );
     }
   });
 
-  it("Will allow an NFT to be relisted after being cancelled", async () => {
+  it("Will NOT allow a cancelled listing to be reinitialized", async () => {
     const options = {
       amount: anchor.web3.LAMPORTS_PER_SOL,
       basisPoints: 500,
@@ -393,36 +446,91 @@ describe("dexloan_listings", () => {
       },
     });
 
-    const listing = await borrower.program.account.listing.fetch(
-      borrower.listingAccount
-    );
-
     const listingOptions = new helpers.ListingOptions();
     listingOptions.amount = new anchor.BN(anchor.web3.LAMPORTS_PER_SOL * 2);
     listingOptions.basisPoints = new anchor.BN(5000);
     listingOptions.duration = new anchor.BN(120);
 
-    await borrower.program.rpc.makeListing(listingOptions, {
+    try {
+      await borrower.program.rpc.initListing(listingOptions, {
+        accounts: {
+          borrower: borrower.keypair.publicKey,
+          borrowerDepositTokenAccount: borrower.associatedAddress.address,
+          escrowAccount: borrower.escrowAccount,
+          listingAccount: borrower.listingAccount,
+          mint: borrower.mint.publicKey,
+          tokenProgram: splToken.TOKEN_PROGRAM_ID,
+          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        },
+      });
+      assert.ok(false);
+    } catch (error) {
+      assert.equal(
+        error.toString(),
+        "Error: failed to send transaction: Transaction simulation failed: Error processing Instruction 0: Cross-program invocation with unauthorized signer or writable account"
+      );
+    }
+  });
+
+  it("will allow use of a different listing account when relisting the same NFT", async () => {
+    const options = {
+      amount: anchor.web3.LAMPORTS_PER_SOL,
+      basisPoints: 500,
+      duration: 60,
+    };
+    const borrower = await helpers.initListing(connection, options);
+
+    await borrower.program.rpc.cancelListing({
+      accounts: {
+        listingAccount: borrower.listingAccount,
+        escrowAccount: borrower.escrowAccount,
+        borrower: borrower.keypair.publicKey,
+        borrowerDepositTokenAccount: borrower.associatedAddress.address,
+        mint: borrower.mint.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        tokenProgram: splToken.TOKEN_PROGRAM_ID,
+      },
+    });
+
+    const [nextListingAddress, discriminator] =
+      await helpers.findListingAddress(
+        connection,
+        borrower.mint.publicKey,
+        borrower.keypair.publicKey,
+        borrower.program.programId
+      );
+
+    const listingOptions = new helpers.ListingOptions();
+    listingOptions.amount = new anchor.BN(anchor.web3.LAMPORTS_PER_SOL * 2);
+    listingOptions.basisPoints = new anchor.BN(5000);
+    listingOptions.duration = new anchor.BN(120);
+    listingOptions.discriminator = discriminator;
+
+    await borrower.program.rpc.initListing(listingOptions, {
       accounts: {
         borrower: borrower.keypair.publicKey,
         borrowerDepositTokenAccount: borrower.associatedAddress.address,
-        escrowAccount: listing.escrow,
-        listingAccount: borrower.listingAccount,
-        mint: listing.mint,
+        escrowAccount: borrower.escrowAccount,
+        listingAccount: nextListingAddress,
+        mint: borrower.mint.publicKey,
         tokenProgram: splToken.TOKEN_PROGRAM_ID,
         rent: anchor.web3.SYSVAR_RENT_PUBKEY,
         systemProgram: anchor.web3.SystemProgram.programId,
       },
     });
 
-    const reListing = await borrower.program.account.listing.fetch(
-      borrower.listingAccount
+    const nextListing = await borrower.program.account.listing.fetch(
+      nextListingAddress
     );
 
-    assert.equal(reListing.amount, anchor.web3.LAMPORTS_PER_SOL * 2);
-    assert.equal(reListing.basisPoints, 5000);
-    assert.equal(reListing.duration, 120);
-    assert.equal(reListing.state, 1);
+    assert.equal(nextListing.borrower, borrower.keypair.publicKey.toString());
+    assert.equal(nextListing.basisPoints, listingOptions.basisPoints);
+    assert.equal(nextListing.duration.toNumber(), listingOptions.duration);
+    assert.equal(
+      nextListing.mint.toBase58(),
+      borrower.mint.publicKey.toBase58()
+    );
   });
 });
 

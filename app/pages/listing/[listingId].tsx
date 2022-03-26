@@ -1,22 +1,15 @@
 import * as anchor from "@project-serum/anchor";
 import { useAnchorWallet, useConnection } from "@solana/wallet-adapter-react";
-import {
-  Button,
-  Divider,
-  Flex,
-  Image,
-  View,
-  Link as SpectrumLink,
-  ProgressCircle,
-} from "@adobe/react-spectrum";
+import { Button, Divider, Flex, View, Well } from "@adobe/react-spectrum";
 import type { NextPage } from "next";
 import { useRouter } from "next/router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import * as utils from "../../utils";
 import { ListingState } from "../../lib/web3";
-import { useListingQuery, useMetadataFileQuery } from "../../hooks/query";
+import { useListingQuery } from "../../hooks/query";
 import {
   useCancelMutation,
+  useCloseAccountMutation,
   useLoanMutation,
   useRepaymentMutation,
   useRepossessMutation,
@@ -26,11 +19,14 @@ import { LoadingPlaceholder } from "../../components/progress";
 import { Main } from "../../components/layout";
 import {
   CancelDialog,
+  CloseAccountDialog,
   LoanDialog,
   RepayDialog,
   RepossessDialog,
 } from "../../components/dialog";
 import { useWalletConnect } from "../../components/button";
+import { ExplorerLink } from "../../components/link";
+import { ListingImage } from "../../components/image";
 
 const Listing: NextPage = () => {
   const router = useRouter();
@@ -42,10 +38,6 @@ const Listing: NextPage = () => {
     ? new anchor.web3.PublicKey(listingId as string)
     : undefined;
   const listingQuery = useListingQuery(connection, pubkey);
-
-  if (listingQuery.isLoading) {
-    return <LoadingPlaceholder />;
-  }
 
   const listing = listingQuery.data?.listing;
   const metadata = listingQuery.data?.metadata;
@@ -132,6 +124,17 @@ const Listing: NextPage = () => {
     return null;
   }
 
+  function renderCloseAccountButton() {
+    if (
+      pubkey &&
+      listing?.borrower.toBase58() === anchorWallet?.publicKey.toBase58()
+    ) {
+      return <CloseAccountButton listing={pubkey} />;
+    }
+
+    return null;
+  }
+
   function renderByState() {
     if (listing === undefined) return null;
 
@@ -170,20 +173,7 @@ const Listing: NextPage = () => {
                 SOL.
               </Body>
             </View>
-            <View marginBottom="size-300">
-              <Body>
-                <SpectrumLink>
-                  <a
-                    href={`https://explorer.solana.com/address/${listing?.mint.toBase58()}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    View mint
-                  </a>
-                </SpectrumLink>
-              </Body>
-            </View>
-            <View>{renderListedButton()}</View>
+            <View marginY="size-200">{renderListedButton()}</View>
           </>
         );
 
@@ -216,32 +206,40 @@ const Listing: NextPage = () => {
                 SOL currently owed. Repayment {getRepaymentText()}
               </Body>
             </View>
-            <View paddingBottom="size-300">
-              <Body>
-                <SpectrumLink>
-                  <a
-                    href={`https://explorer.solana.com/address/${listing?.mint.toBase58()}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    View mint
-                  </a>
-                </SpectrumLink>
-              </Body>
-            </View>
-            <View>{renderActiveButton()}</View>
+            <View marginY="size-200">{renderActiveButton()}</View>
           </>
         );
 
       case ListingState.Repaid:
-        return <Body>Listing has ended. The loan was repaid.</Body>;
+        return (
+          <>
+            <View marginBottom="size-300">
+              <Body>Listing has ended. The loan was repaid.</Body>
+            </View>
+            <View marginY="size-200">{renderCloseAccountButton()}</View>
+          </>
+        );
 
       case ListingState.Cancelled:
-        return <Body>Listing cancelled.</Body>;
+        return (
+          <>
+            <View marginBottom="size-300">
+              <Body>Listing cancelled.</Body>
+            </View>
+            <View marginY="size-200">{renderCloseAccountButton()}</View>
+          </>
+        );
 
       case ListingState.Defaulted:
         return (
-          <Body>Listing has ended. The NFT was repossessed by the lender.</Body>
+          <>
+            <View marginBottom="size-300">
+              <Body>
+                Listing has ended. The NFT was repossessed by the lender.
+              </Body>
+            </View>
+            <View marginY="size-200">{renderCloseAccountButton()}</View>
+          </>
         );
 
       default:
@@ -249,9 +247,26 @@ const Listing: NextPage = () => {
     }
   }
 
+  if (listingQuery.isLoading) {
+    return <LoadingPlaceholder />;
+  }
+
+  if (listingQuery.error instanceof Error) {
+    return (
+      <Main>
+        <View marginTop="size-400">
+          <Flex direction="column" alignItems="center">
+            <Heading size="M">404 Error</Heading>
+            <Body>{listingQuery.error.message}</Body>
+          </Flex>
+        </View>
+      </Main>
+    );
+  }
+
   return (
     <Main>
-      <Flex direction="row">
+      <Flex direction="row" wrap="wrap">
         <Flex flex={1} direction="column" justifyContent="center">
           <View padding="size-100">
             <ListingImage uri={metadata?.data.data.uri} />
@@ -266,6 +281,35 @@ const Listing: NextPage = () => {
               <Divider size="M" />
             </View>
             {renderByState()}
+          </View>
+          <View>
+            {listing?.borrower && (
+              <Well>
+                Borrower
+                <br />
+                <ExplorerLink address={listing.borrower}>
+                  {listing.borrower?.toBase58()}
+                </ExplorerLink>
+              </Well>
+            )}
+            {listing?.lender && listing.state !== ListingState.Listed && (
+              <Well>
+                Lender
+                <br />
+                <ExplorerLink address={listing.lender}>
+                  {listing.lender.toBase58()}
+                </ExplorerLink>
+              </Well>
+            )}
+            {listing?.mint && (
+              <Well>
+                Mint
+                <br />
+                <ExplorerLink address={listing.mint}>
+                  {listing.mint.toBase58()}
+                </ExplorerLink>
+              </Well>
+            )}
           </View>
         </Flex>
       </Flex>
@@ -364,6 +408,7 @@ interface RepayButtonProps extends CancelButtonProps {
 }
 
 const RepayButton = ({ mint, escrow, listing, lender }: RepayButtonProps) => {
+  const router = useRouter();
   const [dialog, setDialog] = useState(false);
   const mutation = useRepaymentMutation(() => setDialog(false));
   const anchorWallet = useAnchorWallet();
@@ -376,6 +421,12 @@ const RepayButton = ({ mint, escrow, listing, lender }: RepayButtonProps) => {
       handleConnect(() => setDialog(true));
     }
   }
+
+  useEffect(() => {
+    if (mutation.isSuccess) {
+      router.replace("/manage");
+    }
+  }, [router, mutation.isSuccess]);
 
   return (
     <>
@@ -405,7 +456,11 @@ interface RepossessButtonProps {
   listing: anchor.web3.PublicKey;
 }
 
-const RepossessButton = ({ mint, escrow, listing }: RepossessButtonProps) => {
+const RepossessButton: React.FC<RepossessButtonProps> = ({
+  mint,
+  escrow,
+  listing,
+}) => {
   const [dialog, setDialog] = useState(false);
   const mutation = useRepossessMutation(() => setDialog(false));
   const anchorWallet = useAnchorWallet();
@@ -440,39 +495,49 @@ const RepossessButton = ({ mint, escrow, listing }: RepossessButtonProps) => {
   );
 };
 
-interface ListingImageProps {
-  uri: string | undefined;
+interface CloseAcccountButtonProps {
+  listing: anchor.web3.PublicKey;
 }
 
-const ListingImage: React.FC<ListingImageProps> = ({ uri }) => {
-  const metadataFileQuery = useMetadataFileQuery(uri);
+export const CloseAccountButton: React.FC<CloseAcccountButtonProps> = ({
+  listing,
+}) => {
+  const router = useRouter();
+  const [dialog, setDialog] = useState(false);
+  const mutation = useCloseAccountMutation(() => setDialog(false));
+  const anchorWallet = useAnchorWallet();
+  const [handleConnect] = useWalletConnect();
+
+  async function onClose() {
+    if (anchorWallet) {
+      setDialog(true);
+    } else {
+      handleConnect(() => setDialog(true));
+    }
+  }
+
+  useEffect(() => {
+    if (mutation.isSuccess) {
+      router.replace("/manage");
+    }
+  }, [router, mutation.isSuccess]);
 
   return (
-    <View
-      flex={1}
-      maxWidth={475}
-      maxHeight={475}
-      borderRadius="large"
-      overflow="hidden"
-    >
-      {metadataFileQuery.data?.image ? (
-        <Image
-          height="100%"
-          width="100%"
-          src={metadataFileQuery.data?.image}
-          alt="NFT"
-        />
-      ) : (
-        <Flex
-          height={568}
-          width={568}
-          alignItems="center"
-          justifyContent="center"
-        >
-          <ProgressCircle aria-label="Loading…" isIndeterminate />
-        </Flex>
-      )}
-    </View>
+    <>
+      <Button variant="cta" minWidth="size-2000" onPress={() => onClose()}>
+        Close listing account
+      </Button>
+      <CloseAccountDialog
+        open={dialog}
+        loading={mutation.isLoading}
+        onRequestClose={() => setDialog(false)}
+        onConfirm={() =>
+          mutation.mutate({
+            listing,
+          })
+        }
+      />
+    </>
   );
 };
 

@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use anchor_lang::AccountsClose;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
 declare_id!("H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj");
@@ -19,34 +20,7 @@ pub mod dexloan_listings {
         listing.mint = ctx.accounts.mint.key();
         listing.escrow = ctx.accounts.escrow_account.key();
         listing.escrow_bump = *ctx.bumps.get("escrow_account").unwrap();
-        // List
-        listing.amount = options.amount;
-        listing.basis_points = options.basis_points;
-        listing.duration = options.duration;
-        listing.state = ListingState::Listed as u8;
-        listing.borrower = ctx.accounts.borrower.key();
-        // Transfer
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_accounts = anchor_spl::token::Transfer {
-            from: ctx.accounts.borrower_deposit_token_account.to_account_info(),
-            to: ctx.accounts.escrow_account.to_account_info(),
-            authority: ctx.accounts.borrower.to_account_info(),
-        };
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        anchor_spl::token::transfer(cpi_ctx, 1)?;
-
-        Ok(())
-    }
-
-    pub fn make_listing(
-        ctx: Context<MakeListing>,
-        options: ListingOptions
-    ) -> ProgramResult {
-        let listing = &mut ctx.accounts.listing_account;
-
-        if listing.state == ListingState::Listed as u8 || listing.state == ListingState::Active as u8 {
-            return Err(ErrorCode::InvalidState.into())
-        }
+        listing.discriminator = options.discriminator;
         // List
         listing.amount = options.amount;
         listing.basis_points = options.basis_points;
@@ -80,11 +54,15 @@ pub mod dexloan_listings {
         let seeds = &[
             b"escrow",
             ctx.accounts.mint.to_account_info().key.as_ref(),
-            &[ctx.accounts.listing_account.escrow_bump],
+            &[listing.escrow_bump],
         ];
         let signer = &[&seeds[..]];
         let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
         anchor_spl::token::transfer(cpi_ctx, 1)?;
+
+        ctx.accounts.listing_account.close(
+            ctx.accounts.borrower.to_account_info()
+        )?;
         
         Ok(())
     }
@@ -152,11 +130,15 @@ pub mod dexloan_listings {
         let seeds = &[
             b"escrow",
             ctx.accounts.mint.to_account_info().key.as_ref(),
-            &[ctx.accounts.listing_account.escrow_bump],
+            &[listing.escrow_bump],
         ];
         let signer = &[&seeds[..]];
         let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
         anchor_spl::token::transfer(cpi_ctx, 1)?;
+
+        ctx.accounts.listing_account.close(
+            ctx.accounts.borrower.to_account_info()
+        )?;
 
         Ok(())
     }
@@ -184,12 +166,20 @@ pub mod dexloan_listings {
         let seeds = &[
             b"escrow",
             ctx.accounts.mint.to_account_info().key.as_ref(),
-            &[ctx.accounts.listing_account.escrow_bump],
+            &[listing.escrow_bump],
         ];
         let signer = &[&seeds[..]];
         let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
         anchor_spl::token::transfer(cpi_ctx, 1)?;
         
+        Ok(())
+    }
+
+    pub fn close_account(ctx: Context<CloseAccount>) -> Result<()> {
+        let listing = &mut ctx.accounts.listing_account;
+
+        listing.close(ctx.accounts.borrower.to_account_info())?;
+
         Ok(())
     }
 }
@@ -198,7 +188,8 @@ pub mod dexloan_listings {
 pub struct ListingOptions {
     amount: u64,
     duration: u64,
-    basis_points: u32
+    basis_points: u32,
+    discriminator: u8,
 }
 
 #[derive(Accounts)]
@@ -215,7 +206,12 @@ pub struct InitListing<'info> {
     #[account(
         init,
         payer = borrower,
-        seeds = [b"listing", mint.key().as_ref(), borrower.key().as_ref()],
+        seeds = [
+            b"listing",
+            mint.key().as_ref(),
+            borrower.key().as_ref(),
+            &[options.discriminator]
+        ],
         bump,
         space = LISTING_SIZE,
     )]
@@ -231,40 +227,6 @@ pub struct InitListing<'info> {
     )]
     pub escrow_account: Box<Account<'info, TokenAccount>>,
     #[account(constraint = mint.supply == 1)]
-    pub mint: Box<Account<'info, Mint>>,
-    /// Misc
-    pub system_program: Program<'info, System>,
-    pub token_program: Program<'info, Token>,
-    pub rent: Sysvar<'info, Rent>,
-}
-
-#[derive(Accounts)]
-#[instruction(options: ListingOptions)]
-pub struct MakeListing<'info> {
-    /// The person who is listing the loan
-    pub borrower: Signer<'info>,
-    #[account(
-        mut,
-        constraint = borrower_deposit_token_account.mint == mint.key(),
-    )]
-    pub borrower_deposit_token_account: Box<Account<'info, TokenAccount>>,
-    /// The listing account to be used
-    #[account(
-        mut,
-        constraint = listing_account.mint == mint.key(),
-        constraint = listing_account.escrow == escrow_account.key(),
-    )]
-    pub listing_account: Box<Account<'info, Listing>>,
-    /// This is where we'll store the borrower's token
-    #[account(
-        init_if_needed,
-        payer = borrower,
-        seeds = [b"escrow", mint.key().as_ref()],
-        bump,
-        token::mint = mint,
-        token::authority = escrow_account,
-    )]
-    pub escrow_account: Box<Account<'info, TokenAccount>>,
     pub mint: Box<Account<'info, Mint>>,
     /// Misc
     pub system_program: Program<'info, System>,
@@ -365,6 +327,19 @@ pub struct RepossessCollateral<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
+#[derive(Accounts)]
+pub struct CloseAccount<'info> {
+    #[account(mut)]
+    pub borrower: Signer<'info>,
+    #[account(
+        mut,
+        constraint = listing_account.borrower == *borrower.key,
+        constraint = listing_account.state != ListingState::Listed as u8,
+        constraint = listing_account.state != ListingState::Active as u8,
+    )]
+    pub listing_account: Box<Account<'info, Listing>>,
+}
+
 const LISTING_SIZE: usize = 8 + // key
 1 + // state
 8 + // amount
@@ -377,14 +352,16 @@ const LISTING_SIZE: usize = 8 + // key
 32 + // mint
 1 + // bump
 1 + // escrow bump
-220; // padding
+1 + // disriminator
+120; // padding
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
 pub enum ListingState {
-    Initialized = 0,
     Listed = 1,
     Active = 2,
+    // deprecated
     Repaid = 3,
+    // deprecated
     Cancelled = 4,
     Defaulted = 5,
 }
@@ -412,6 +389,7 @@ pub struct Listing {
     /// Misc
     pub bump: u8,
     pub escrow_bump: u8,
+    pub discriminator: u8,
 }
 
 #[error]

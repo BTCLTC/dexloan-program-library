@@ -3,6 +3,8 @@ import * as splToken from "@solana/spl-token";
 import { TokenAccount } from "@metaplex-foundation/mpl-core";
 import { Metadata } from "@metaplex-foundation/mpl-token-metadata";
 import { AnchorWallet, WalletContextState } from "@solana/wallet-adapter-react";
+import bs58 from "bs58";
+
 import idl from "../idl.json";
 import type { DexloanListings } from "../dexloan";
 
@@ -36,7 +38,7 @@ export enum ListingState {
   Defaulted = 5,
 }
 
-export async function getListing(
+export async function fetchListing(
   connection: anchor.web3.Connection,
   listing: anchor.web3.PublicKey
 ) {
@@ -58,7 +60,7 @@ export async function getListing(
   };
 }
 
-export async function getListings(
+export async function fetchListings(
   connection: anchor.web3.Connection,
   filter: anchor.web3.GetProgramAccountsFilter[] = []
 ) {
@@ -101,12 +103,62 @@ export async function getListings(
     .filter(Boolean);
 }
 
+export const fetchActiveListings = (connection: anchor.web3.Connection) => {
+  return fetchListings(connection, [
+    {
+      memcmp: {
+        // filter active
+        offset: 7 + 1,
+        bytes: bs58.encode(
+          new anchor.BN(ListingState.Active).toArrayLike(Buffer)
+        ),
+      },
+    },
+  ]);
+};
+
+export async function fetchListingsByBorrowerAndState(
+  connection: anchor.web3.Connection,
+  owner: anchor.web3.PublicKey,
+  state: ListingState
+) {
+  return fetchListings(connection, [
+    {
+      memcmp: {
+        // filter active
+        offset: 7 + 1,
+        bytes: bs58.encode(new anchor.BN(state).toArrayLike(Buffer)),
+      },
+    },
+    {
+      memcmp: {
+        // filter borrower
+        offset: 7 + 1 + 8 + 1,
+        bytes: owner.toBase58(),
+      },
+    },
+  ]);
+}
+
+export async function fetchFinalizedListingsByBorrower(
+  connection: anchor.web3.Connection,
+  owner: anchor.web3.PublicKey
+) {
+  const [defaulted, cancelled, repaid] = await Promise.all([
+    fetchListingsByBorrowerAndState(connection, owner, ListingState.Defaulted),
+    fetchListingsByBorrowerAndState(connection, owner, ListingState.Cancelled),
+    fetchListingsByBorrowerAndState(connection, owner, ListingState.Repaid),
+  ]);
+
+  return [...defaulted, ...cancelled, ...repaid];
+}
+
 export interface NFTResult {
   accountInfo: TokenAccount;
   metadata: Metadata;
 }
 
-export async function getNFTs(
+export async function fetchNFTs(
   connection: anchor.web3.Connection,
   pubkey: anchor.web3.PublicKey
 ): Promise<NFTResult[]> {
@@ -169,15 +221,18 @@ class ListingOptions {
   public amount: anchor.BN;
   public duration: anchor.BN;
   public basisPoints: number;
+  public discriminator: number;
 
   constructor(options: {
     amount: number;
     duration: number;
     basisPoints: number;
+    discriminator: number;
   }) {
     this.amount = new anchor.BN(options.amount);
     this.duration = new anchor.BN(options.duration);
     this.basisPoints = options.basisPoints;
+    this.discriminator = options.discriminator;
   }
 }
 
@@ -195,8 +250,10 @@ export async function createListing(
   const provider = getProvider(connection, wallet as typeof anchor.Wallet);
   const program = getProgram(provider);
 
-  const [listingAccount] = await anchor.web3.PublicKey.findProgramAddress(
-    [Buffer.from("listing"), mint.toBuffer(), wallet.publicKey.toBuffer()],
+  const [listingAccount, discriminator] = await findListingAddress(
+    connection,
+    mint,
+    wallet.publicKey,
     program.programId
   );
 
@@ -205,32 +262,63 @@ export async function createListing(
     program.programId
   );
 
-  const listingOptions = new ListingOptions(options);
+  const listingOptions = new ListingOptions({
+    ...options,
+    discriminator,
+  });
 
-  let listing;
+  await program.rpc.initListing(listingOptions, {
+    accounts: {
+      escrowAccount,
+      listingAccount,
+      mint,
+      borrowerDepositTokenAccount,
+      borrower: wallet.publicKey,
+      tokenProgram: splToken.TOKEN_PROGRAM_ID,
+      rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+      systemProgram: anchor.web3.SystemProgram.programId,
+    },
+  });
+}
 
-  try {
-    listing = await program.account.listing.fetch(listingAccount);
-  } catch {}
+function getDiscriminator(excluded: number) {
+  let n = Math.floor(Math.random() * 255);
+  if (n >= excluded) n++;
+  return n;
+}
 
-  const accounts = {
-    escrowAccount,
-    listingAccount,
-    mint,
-    borrowerDepositTokenAccount,
-    borrower: wallet.publicKey,
-    tokenProgram: splToken.TOKEN_PROGRAM_ID,
-    rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-    systemProgram: anchor.web3.SystemProgram.programId,
-  };
+export async function findListingAddress(
+  connection: anchor.web3.Connection,
+  mint: anchor.web3.PublicKey,
+  borrower: anchor.web3.PublicKey,
+  programId: anchor.web3.PublicKey,
+  excluded: number = 256
+): Promise<[anchor.web3.PublicKey, number]> {
+  const discriminator = getDiscriminator(excluded);
 
-  if (!listing) {
-    await program.rpc.initListing(listingOptions, { accounts });
-  } else {
-    await program.rpc.makeListing(listingOptions, {
-      accounts,
-    });
+  const [listingAccount] = await anchor.web3.PublicKey.findProgramAddress(
+    [
+      Buffer.from("listing"),
+      mint.toBuffer(),
+      borrower.toBuffer(),
+      new anchor.BN(discriminator).toArrayLike(Buffer),
+    ],
+    programId
+  );
+
+  const account = await connection.getAccountInfo(listingAccount);
+
+  if (account === null) {
+    return [listingAccount, discriminator];
   }
+
+  return findListingAddress(
+    connection,
+    mint,
+    borrower,
+    programId,
+    discriminator
+  );
 }
 
 export async function createLoan(
@@ -318,6 +406,22 @@ export async function repayLoan(
       systemProgram: anchor.web3.SystemProgram.programId,
       tokenProgram: splToken.TOKEN_PROGRAM_ID,
       clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
+    },
+  });
+}
+
+export async function closeAccount(
+  connection: anchor.web3.Connection,
+  wallet: AnchorWallet,
+  listingAccount: anchor.web3.PublicKey
+): Promise<void> {
+  const provider = getProvider(connection, wallet as typeof anchor.Wallet);
+  const program = getProgram(provider);
+
+  await program.rpc.closeAccount({
+    accounts: {
+      listingAccount,
+      borrower: wallet.publicKey,
     },
   });
 }

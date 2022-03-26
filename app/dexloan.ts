@@ -56,59 +56,6 @@ export type DexloanListings = {
       ]
     },
     {
-      "name": "makeListing",
-      "accounts": [
-        {
-          "name": "borrower",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "borrowerDepositTokenAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "listingAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "escrowAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "mint",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "options",
-          "type": {
-            "defined": "ListingOptions"
-          }
-        }
-      ]
-    },
-    {
       "name": "cancelListing",
       "accounts": [
         {
@@ -291,6 +238,22 @@ export type DexloanListings = {
         }
       ],
       "args": []
+    },
+    {
+      "name": "closeAccount",
+      "accounts": [
+        {
+          "name": "borrower",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "listingAccount",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -342,6 +305,10 @@ export type DexloanListings = {
           {
             "name": "escrowBump",
             "type": "u8"
+          },
+          {
+            "name": "discriminator",
+            "type": "u8"
           }
         ]
       }
@@ -364,6 +331,10 @@ export type DexloanListings = {
           {
             "name": "basisPoints",
             "type": "u32"
+          },
+          {
+            "name": "discriminator",
+            "type": "u8"
           }
         ]
       }
@@ -373,9 +344,6 @@ export type DexloanListings = {
       "type": {
         "kind": "enum",
         "variants": [
-          {
-            "name": "Initialized"
-          },
           {
             "name": "Listed"
           },
@@ -467,59 +435,6 @@ export const IDL: DexloanListings = {
       ]
     },
     {
-      "name": "makeListing",
-      "accounts": [
-        {
-          "name": "borrower",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "borrowerDepositTokenAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "listingAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "escrowAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "mint",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "options",
-          "type": {
-            "defined": "ListingOptions"
-          }
-        }
-      ]
-    },
-    {
       "name": "cancelListing",
       "accounts": [
         {
@@ -702,6 +617,22 @@ export const IDL: DexloanListings = {
         }
       ],
       "args": []
+    },
+    {
+      "name": "closeAccount",
+      "accounts": [
+        {
+          "name": "borrower",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "listingAccount",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -753,6 +684,10 @@ export const IDL: DexloanListings = {
           {
             "name": "escrowBump",
             "type": "u8"
+          },
+          {
+            "name": "discriminator",
+            "type": "u8"
           }
         ]
       }
@@ -775,6 +710,10 @@ export const IDL: DexloanListings = {
           {
             "name": "basisPoints",
             "type": "u32"
+          },
+          {
+            "name": "discriminator",
+            "type": "u8"
           }
         ]
       }
@@ -784,9 +723,6 @@ export const IDL: DexloanListings = {
       "type": {
         "kind": "enum",
         "variants": [
-          {
-            "name": "Initialized"
-          },
           {
             "name": "Listed"
           },

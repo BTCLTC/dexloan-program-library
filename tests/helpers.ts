@@ -70,6 +70,47 @@ export class ListingOptions {
   public amount;
   public basisPoints;
   public duration;
+  public discriminator;
+}
+
+function getDiscriminator(excluded: number) {
+  let n = Math.floor(Math.random() * 255);
+  if (n >= excluded) n++;
+  return n;
+}
+
+export async function findListingAddress(
+  connection: anchor.web3.Connection,
+  mint: anchor.web3.PublicKey,
+  borrower: anchor.web3.PublicKey,
+  programId: anchor.web3.PublicKey,
+  excluded: number = 256
+): Promise<[anchor.web3.PublicKey, number]> {
+  const discriminator = getDiscriminator(excluded);
+
+  const [listingAccount] = await anchor.web3.PublicKey.findProgramAddress(
+    [
+      Buffer.from("listing"),
+      mint.toBuffer(),
+      borrower.toBuffer(),
+      new anchor.BN(discriminator).toBuffer(),
+    ],
+    programId
+  );
+
+  const account = await connection.getAccountInfo(listingAccount);
+
+  if (account === null) {
+    return [listingAccount, discriminator];
+  }
+
+  return findListingAddress(
+    connection,
+    mint,
+    borrower,
+    programId,
+    discriminator
+  );
 }
 
 export async function initListing(
@@ -87,12 +128,10 @@ export async function initListing(
 
   const { mint, associatedAddress } = await mintNFT(connection, keypair);
 
-  const [listingAccount] = await anchor.web3.PublicKey.findProgramAddress(
-    [
-      Buffer.from("listing"),
-      mint.publicKey.toBuffer(),
-      keypair.publicKey.toBuffer(),
-    ],
+  const [listingAccount, discriminator] = await findListingAddress(
+    connection,
+    mint.publicKey,
+    keypair.publicKey,
     program.programId
   );
 
@@ -105,6 +144,7 @@ export async function initListing(
   listingOptions.amount = new anchor.BN(options.amount);
   listingOptions.basisPoints = new anchor.BN(options.basisPoints);
   listingOptions.duration = new anchor.BN(options.duration);
+  listingOptions.discriminator = discriminator;
 
   await program.rpc.initListing(listingOptions, {
     accounts: {

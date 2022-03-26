@@ -56,59 +56,6 @@
       ]
     },
     {
-      "name": "makeListing",
-      "accounts": [
-        {
-          "name": "borrower",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "borrowerDepositTokenAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "listingAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "escrowAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "mint",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "options",
-          "type": {
-            "defined": "ListingOptions"
-          }
-        }
-      ]
-    },
-    {
       "name": "cancelListing",
       "accounts": [
         {
@@ -291,6 +238,22 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "closeAccount",
+      "accounts": [
+        {
+          "name": "borrower",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "listingAccount",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -342,6 +305,10 @@
           {
             "name": "escrowBump",
             "type": "u8"
+          },
+          {
+            "name": "discriminator",
+            "type": "u8"
           }
         ]
       }
@@ -364,6 +331,10 @@
           {
             "name": "basisPoints",
             "type": "u32"
+          },
+          {
+            "name": "discriminator",
+            "type": "u8"
           }
         ]
       }
@@ -373,9 +344,6 @@
       "type": {
         "kind": "enum",
         "variants": [
-          {
-            "name": "Initialized"
-          },
           {
             "name": "Listed"
           },

@@ -250,6 +250,51 @@ export const useLoanMutation = (onSuccess: () => void) => {
   );
 };
 
+interface CloseMutationVariables {
+  listing: anchor.web3.PublicKey;
+}
+
+export const useCloseAccountMutation = (onSuccess: () => void) => {
+  const anchorWallet = useAnchorWallet();
+  const { connection } = useConnection();
+  const queryClient = useQueryClient();
+
+  return useMutation<void, Error, CloseMutationVariables>(
+    async ({ listing }) => {
+      if (anchorWallet) {
+        return web3.closeAccount(connection, anchorWallet, listing);
+      }
+      throw new Error("Not ready");
+    },
+    {
+      onSuccess(_, variables) {
+        toast.success("Listing account closed");
+
+        queryClient.setQueryData(
+          ["finalized", anchorWallet?.publicKey.toBase58()],
+          (data: any) => {
+            if (data) {
+              return data?.filter(
+                (item: any) =>
+                  item.listing.publicKey.toBase58() !==
+                  variables.listing.toBase58()
+              );
+            }
+          }
+        );
+
+        onSuccess();
+      },
+      onError(err) {
+        console.error(err);
+        if (err instanceof Error) {
+          toast.error("Error: " + err.message);
+        }
+      },
+    }
+  );
+};
+
 function setListingState(
   queryClient: QueryClient,
   listing: anchor.web3.PublicKey,

@@ -22,7 +22,9 @@ export function useWalletConnect(): [(cb?: () => void) => void, string] {
         if (!wallet.publicKey) await wallet.connect();
         else await wallet.disconnect();
         if (cb) cb();
-      } catch {}
+      } catch (err) {
+        console.log(err);
+      }
     },
     [wallet]
   );

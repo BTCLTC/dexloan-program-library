@@ -23,14 +23,14 @@ interface MutationDialogProps {
   onRequestClose: () => void;
 }
 
-const MutationDialog = ({
+const MutationDialog: React.FC<MutationDialogProps> = ({
   open,
   header,
   content,
   loading,
   onConfirm,
   onRequestClose,
-}: MutationDialogProps) => {
+}) => {
   return (
     <DialogContainer onDismiss={onRequestClose}>
       {open && (
@@ -78,14 +78,14 @@ interface LoanDialogProps {
   onRequestClose: () => void;
 }
 
-export const LoanDialog = ({
+export const LoanDialog: React.FC<LoanDialogProps> = ({
   open,
   amount,
   basisPoints,
   loading,
   onConfirm,
   onRequestClose,
-}: LoanDialogProps) => {
+}) => {
   return (
     <MutationDialog
       open={open}
@@ -115,15 +115,9 @@ export const LoanDialog = ({
   );
 };
 
-export const CancelDialog = ({
-  open,
-  loading,
-  onConfirm,
-  onRequestClose,
-}: Pick<
-  MutationDialogProps,
-  "open" | "loading" | "onConfirm" | "onRequestClose"
->) => {
+export const CancelDialog: React.FC<
+  Pick<MutationDialogProps, "open" | "loading" | "onConfirm" | "onRequestClose">
+> = ({ open, loading, onConfirm, onRequestClose }) => {
   return (
     <MutationDialog
       open={open}
@@ -136,15 +130,9 @@ export const CancelDialog = ({
   );
 };
 
-export const RepayDialog = ({
-  open,
-  loading,
-  onConfirm,
-  onRequestClose,
-}: Pick<
-  MutationDialogProps,
-  "open" | "loading" | "onConfirm" | "onRequestClose"
->) => {
+export const RepayDialog: React.FC<
+  Pick<MutationDialogProps, "open" | "loading" | "onConfirm" | "onRequestClose">
+> = ({ open, loading, onConfirm, onRequestClose }) => {
   return (
     <MutationDialog
       open={open}
@@ -157,15 +145,9 @@ export const RepayDialog = ({
   );
 };
 
-export const RepossessDialog = ({
-  open,
-  loading,
-  onConfirm,
-  onRequestClose,
-}: Pick<
-  MutationDialogProps,
-  "open" | "loading" | "onConfirm" | "onRequestClose"
->) => {
+export const RepossessDialog: React.FC<
+  Pick<MutationDialogProps, "open" | "loading" | "onConfirm" | "onRequestClose">
+> = ({ open, loading, onConfirm, onRequestClose }) => {
   return (
     <MutationDialog
       open={open}
@@ -177,6 +159,21 @@ export const RepossessDialog = ({
           loan will default and you will not be able to receive for repayment.
         </Text>
       }
+      onConfirm={onConfirm}
+      onRequestClose={onRequestClose}
+    />
+  );
+};
+
+export const CloseAccountDialog: React.FC<
+  Pick<MutationDialogProps, "open" | "loading" | "onConfirm" | "onRequestClose">
+> = ({ open, loading, onConfirm, onRequestClose }) => {
+  return (
+    <MutationDialog
+      open={open}
+      loading={loading}
+      header={"Close listing account"}
+      content={<Text>Close listing account to recover rent?</Text>}
       onConfirm={onConfirm}
       onRequestClose={onRequestClose}
     />

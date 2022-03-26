@@ -5,17 +5,17 @@ import { Metadata } from "@metaplex-foundation/mpl-token-metadata";
 import { AnchorWallet, WalletContextState } from "@solana/wallet-adapter-react";
 import bs58 from "bs58";
 
+import { ListingState } from "../common/types";
+import { LISTINGS_PROGRAM_ID } from "../common/constants";
 import idl from "../idl.json";
 import type { DexloanListings } from "../dexloan";
+
+export { ListingState };
 
 export function getProgram(
   provider: anchor.Provider
 ): anchor.Program<DexloanListings> {
-  // @ts-ignore
-  const programID = new anchor.web3.PublicKey(
-    "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
-  );
-  return new anchor.Program(idl as any, programID, provider);
+  return new anchor.Program(idl as any, LISTINGS_PROGRAM_ID, provider);
 }
 
 export function getProvider(
@@ -27,15 +27,6 @@ export function getProvider(
     wallet,
     anchor.Provider.defaultOptions()
   );
-}
-
-export enum ListingState {
-  Initialized = 0,
-  Listed = 1,
-  Active = 2,
-  Repaid = 3,
-  Cancelled = 4,
-  Defaulted = 5,
 }
 
 export async function fetchListing(

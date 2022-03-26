@@ -4,7 +4,6 @@ import {
   Provider as SpectrumProvider,
 } from "@adobe/react-spectrum";
 import CloseIcon from "@spectrum-icons/workflow/Close";
-import * as anchor from "@project-serum/anchor";
 import {
   ConnectionProvider,
   WalletProvider,

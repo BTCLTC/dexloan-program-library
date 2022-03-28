@@ -75,7 +75,7 @@ export function useListingsQuery(connection: anchor.web3.Connection) {
   );
 }
 
-export function useListingsByOwnerQuery(
+export function useBorrowingsQuery(
   connection: anchor.web3.Connection,
   wallet?: AnchorWallet
 ) {
@@ -83,11 +83,15 @@ export function useListingsByOwnerQuery(
     ["listings", wallet?.publicKey.toBase58()],
     () => {
       if (wallet) {
-        return web3.fetchListingsByBorrowerAndState(
-          connection,
-          wallet.publicKey,
-          web3.ListingState.Listed
-        );
+        return web3.fetchListings(connection, [
+          {
+            memcmp: {
+              // filter borrower
+              offset: 7 + 1 + 8 + 1,
+              bytes: wallet.publicKey.toBase58(),
+            },
+          },
+        ]);
       }
     },
     {
@@ -108,64 +112,12 @@ export function useLoansQuery(
         return web3.fetchListings(connection, [
           {
             memcmp: {
-              // filter active
-              offset: 7 + 1,
-              bytes: bs58.encode(
-                new anchor.BN(web3.ListingState.Active).toArrayLike(Buffer)
-              ),
-            },
-          },
-          {
-            memcmp: {
               // filter lender
               offset: 7 + 1 + 8 + 32 + 1,
               bytes: wallet?.publicKey.toBase58(),
             },
           },
         ]);
-      }
-    },
-    {
-      enabled: Boolean(wallet?.publicKey),
-      refetchOnWindowFocus: false,
-    }
-  );
-}
-
-export function useBorrowingsQuery(
-  connection: anchor.web3.Connection,
-  wallet?: AnchorWallet
-) {
-  return useQuery(
-    ["borrowings", wallet?.publicKey.toBase58()],
-    () => {
-      if (wallet) {
-        return web3.fetchListingsByBorrowerAndState(
-          connection,
-          wallet.publicKey,
-          web3.ListingState.Active
-        );
-      }
-    },
-    {
-      enabled: Boolean(wallet?.publicKey),
-      refetchOnWindowFocus: false,
-    }
-  );
-}
-
-export function useFinalizedQuery(
-  connection: anchor.web3.Connection,
-  wallet?: AnchorWallet
-) {
-  return useQuery(
-    ["finalized", wallet?.publicKey.toBase58()],
-    () => {
-      if (wallet) {
-        return web3.fetchFinalizedListingsByBorrower(
-          connection,
-          wallet.publicKey
-        );
       }
     },
     {

@@ -3,14 +3,10 @@ import { Button, Divider, Flex, View } from "@adobe/react-spectrum";
 import { useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import type { NextPage } from "next";
 import { useState } from "react";
+import { ListingState } from "../common/types";
 import * as utils from "../utils";
 import * as web3 from "../lib/web3";
-import {
-  useBorrowingsQuery,
-  useFinalizedQuery,
-  useListingsByOwnerQuery,
-  useLoansQuery,
-} from "../hooks/query";
+import { useBorrowingsQuery, useLoansQuery } from "../hooks/query";
 import {
   useCancelMutation,
   useCloseAccountMutation,
@@ -29,7 +25,6 @@ import {
   RepossessDialog,
 } from "../components/dialog";
 import { useRouter } from "next/router";
-import { ProgressBar } from "react-toastify/dist/components";
 
 const Manage: NextPage = () => {
   const { connection } = useConnection();
@@ -37,8 +32,6 @@ const Manage: NextPage = () => {
 
   const loansQueryResult = useLoansQuery(connection, anchorWallet);
   const borrowingsQueryResult = useBorrowingsQuery(connection, anchorWallet);
-  const listingsQueryResult = useListingsByOwnerQuery(connection, anchorWallet);
-  const finalizedQueryResult = useFinalizedQuery(connection, anchorWallet);
 
   if (!anchorWallet) {
     return (
@@ -54,10 +47,29 @@ const Manage: NextPage = () => {
     return <LoadingPlaceholder />;
   }
 
+  const activeLoans = loansQueryResult.data?.filter(
+    (l) => l?.listing.account.state === ListingState.Active
+  );
+
+  const activeBorrowings = borrowingsQueryResult.data?.filter(
+    (b) => b?.listing.account.state === ListingState.Active
+  );
+
+  const listedBorrowings = borrowingsQueryResult.data?.filter(
+    (b) => b?.listing.account.state === ListingState.Listed
+  );
+
+  const completedListings = borrowingsQueryResult.data?.filter(
+    (b) =>
+      b?.listing.account.state === ListingState.Defaulted ||
+      b?.listing.account.state === ListingState.Cancelled ||
+      b?.listing.account.state === ListingState.Repaid
+  );
+
   return (
     <>
       <Main>
-        {loansQueryResult.data?.length ? (
+        {activeLoans?.length ? (
           <>
             <View marginBottom="size-200" marginTop="size-600">
               <Typography>
@@ -65,7 +77,7 @@ const Manage: NextPage = () => {
               </Typography>
             </View>
             <CardFlexContainer>
-              {loansQueryResult.data?.map(
+              {activeLoans?.map(
                 (item) =>
                   item && (
                     <LoanCard
@@ -85,16 +97,16 @@ const Manage: NextPage = () => {
             </CardFlexContainer>
           </>
         ) : null}
-        {borrowingsQueryResult.data?.length ? (
+        {activeBorrowings?.length ? (
           <>
             <View marginBottom="size-200" marginTop="size-600">
-              {loansQueryResult.data?.length ? <Divider size="M" /> : null}
+              {activeLoans?.length ? <Divider size="M" /> : null}
               <Typography>
                 <Heading>Your Borrowings</Heading>
               </Typography>
             </View>
             <CardFlexContainer>
-              {borrowingsQueryResult.data?.map(
+              {activeBorrowings?.map(
                 (item) =>
                   item && (
                     <BorrowingCard
@@ -115,16 +127,16 @@ const Manage: NextPage = () => {
             </CardFlexContainer>
           </>
         ) : null}
-        {listingsQueryResult.data?.length ? (
+        {listedBorrowings?.length ? (
           <>
             <View marginBottom="size-200" marginTop="size-600">
-              {borrowingsQueryResult.data?.length ? <Divider size="M" /> : null}
+              {activeBorrowings?.length ? <Divider size="M" /> : null}
               <Typography>
                 <Heading>Listed</Heading>
               </Typography>
             </View>
             <CardFlexContainer>
-              {listingsQueryResult.data?.map(
+              {listedBorrowings?.map(
                 (item) =>
                   item && (
                     <ListedCard
@@ -142,11 +154,9 @@ const Manage: NextPage = () => {
               )}
             </CardFlexContainer>
           </>
-        ) : listingsQueryResult.isLoading ? (
-          <LoadingPlaceholder />
         ) : null}
 
-        {finalizedQueryResult.data?.length ? (
+        {completedListings?.length ? (
           <>
             <View marginBottom="size-200" marginTop="size-600">
               {borrowingsQueryResult.data?.length ? <Divider size="M" /> : null}
@@ -155,7 +165,7 @@ const Manage: NextPage = () => {
               </Typography>
             </View>
             <CardFlexContainer>
-              {finalizedQueryResult.data?.map(
+              {completedListings?.map(
                 (item) =>
                   item && (
                     <FinishedCard
@@ -169,8 +179,6 @@ const Manage: NextPage = () => {
               )}
             </CardFlexContainer>
           </>
-        ) : finalizedQueryResult.isLoading ? (
-          <LoadingPlaceholder />
         ) : null}
       </Main>
     </>

@@ -108,42 +108,6 @@ export const fetchActiveListings = (connection: anchor.web3.Connection) => {
   ]);
 };
 
-export async function fetchListingsByBorrowerAndState(
-  connection: anchor.web3.Connection,
-  owner: anchor.web3.PublicKey,
-  state: ListingState
-) {
-  return fetchListings(connection, [
-    {
-      memcmp: {
-        // filter active
-        offset: 7 + 1,
-        bytes: bs58.encode(new anchor.BN(state).toArrayLike(Buffer)),
-      },
-    },
-    {
-      memcmp: {
-        // filter borrower
-        offset: 7 + 1 + 8 + 1,
-        bytes: owner.toBase58(),
-      },
-    },
-  ]);
-}
-
-export async function fetchFinalizedListingsByBorrower(
-  connection: anchor.web3.Connection,
-  owner: anchor.web3.PublicKey
-) {
-  const [defaulted, cancelled, repaid] = await Promise.all([
-    fetchListingsByBorrowerAndState(connection, owner, ListingState.Defaulted),
-    fetchListingsByBorrowerAndState(connection, owner, ListingState.Cancelled),
-    fetchListingsByBorrowerAndState(connection, owner, ListingState.Repaid),
-  ]);
-
-  return [...defaulted, ...cancelled, ...repaid];
-}
-
 export interface NFTResult {
   accountInfo: TokenAccount;
   metadata: Metadata;

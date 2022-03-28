@@ -29,6 +29,7 @@ import {
   RepossessDialog,
 } from "../components/dialog";
 import { useRouter } from "next/router";
+import { ProgressBar } from "react-toastify/dist/components";
 
 const Manage: NextPage = () => {
   const { connection } = useConnection();
@@ -49,12 +50,7 @@ const Manage: NextPage = () => {
     );
   }
 
-  if (
-    loansQueryResult.isLoading ||
-    borrowingsQueryResult.isLoading ||
-    listingsQueryResult.isLoading ||
-    finalizedQueryResult.isLoading
-  ) {
+  if (loansQueryResult.isLoading || borrowingsQueryResult.isLoading) {
     return <LoadingPlaceholder />;
   }
 
@@ -146,6 +142,8 @@ const Manage: NextPage = () => {
               )}
             </CardFlexContainer>
           </>
+        ) : listingsQueryResult.isLoading ? (
+          <LoadingPlaceholder />
         ) : null}
 
         {finalizedQueryResult.data?.length ? (
@@ -171,6 +169,8 @@ const Manage: NextPage = () => {
               )}
             </CardFlexContainer>
           </>
+        ) : finalizedQueryResult.isLoading ? (
+          <LoadingPlaceholder />
         ) : null}
       </Main>
     </>

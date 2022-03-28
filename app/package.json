@@ -11,7 +11,7 @@
     "@adobe/react-spectrum": "^3.15.1",
     "@metaplex-foundation/mpl-core": "^0.0.2",
     "@metaplex-foundation/mpl-token-metadata": "^1.1.0",
-    "@project-serum/anchor": "^0.20.1",
+    "@project-serum/anchor": "^0.23.0",
     "@solana/spl-token": "^0.1.8",
     "@solana/wallet-adapter-base": "^0.9.2",
     "@solana/wallet-adapter-react": "^0.15.2",

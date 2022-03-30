@@ -8,6 +8,12 @@ import { QueryClient, useMutation, useQueryClient } from "react-query";
 import { toast } from "react-toastify";
 
 import * as web3 from "../lib/web3";
+import {
+  getBorrowingsQueryKey,
+  getListingQueryKey,
+  getListingsQueryKey,
+  getLoansQueryKey,
+} from "./query";
 
 interface RepossessMutationProps {
   escrow: anchor.web3.PublicKey;
@@ -52,7 +58,7 @@ export const useRepossessMutation = (onSuccess: () => void) => {
         toast.success("NFT repossessed.");
 
         queryClient.setQueryData(
-          ["loans", anchorWallet?.publicKey.toBase58()],
+          getLoansQueryKey(anchorWallet?.publicKey),
           (loans: any[] | undefined) => {
             if (!loans) return [];
 
@@ -101,7 +107,6 @@ export const useRepaymentMutation = (onSuccess: () => void) => {
     },
     {
       onError(err) {
-        console.error(err);
         if (err instanceof Error) {
           toast.error("Error: " + err.message);
         }
@@ -110,7 +115,7 @@ export const useRepaymentMutation = (onSuccess: () => void) => {
         toast.success("Loan repaid. Your NFT has been returned to you.");
 
         queryClient.setQueryData(
-          ["borrowings", anchorWallet?.publicKey.toBase58()],
+          getBorrowingsQueryKey(anchorWallet?.publicKey),
           (borrowings: any[] | undefined) => {
             if (!borrowings) return [];
 
@@ -165,7 +170,20 @@ export const useCancelMutation = (onSuccess: () => void) => {
         toast.success("Listing cancelled");
 
         queryClient.setQueryData(
-          ["listings", anchorWallet?.publicKey.toBase58()],
+          getListingsQueryKey(),
+          (listings: any[] | undefined) => {
+            if (!listings) return [];
+
+            return listings.filter(
+              (item) =>
+                item.listing.publicKey.toBase58() !==
+                variables.listing.toBase58()
+            );
+          }
+        );
+
+        queryClient.setQueryData(
+          getBorrowingsQueryKey(anchorWallet?.publicKey),
           (listings: any[] | undefined) => {
             if (!listings) return [];
 
@@ -217,7 +235,7 @@ export const useLoanMutation = (onSuccess: () => void) => {
       onSuccess(_, variables) {
         toast.success("Listing created");
 
-        queryClient.setQueryData(["listings"], (data: any) => {
+        queryClient.setQueryData(getListingsQueryKey(), (data: any) => {
           if (data) {
             return data?.filter(
               (item: any) =>
@@ -227,16 +245,9 @@ export const useLoanMutation = (onSuccess: () => void) => {
           }
         });
 
-        setListingState(
-          queryClient,
-          variables.listing,
-          web3.ListingState.Active
+        queryClient.invalidateQueries(
+          getLoansQueryKey(anchorWallet?.publicKey)
         );
-
-        queryClient.invalidateQueries([
-          "loans",
-          anchorWallet?.publicKey.toBase58(),
-        ]);
 
         onSuccess();
       },
@@ -271,7 +282,7 @@ export const useCloseAccountMutation = (onSuccess: () => void) => {
         toast.success("Listing account closed");
 
         queryClient.setQueryData(
-          ["finalized", anchorWallet?.publicKey.toBase58()],
+          getBorrowingsQueryKey(anchorWallet?.publicKey),
           (data: any) => {
             if (data) {
               return data?.filter(
@@ -282,6 +293,16 @@ export const useCloseAccountMutation = (onSuccess: () => void) => {
             }
           }
         );
+
+        queryClient.setQueryData(getListingsQueryKey(), (data: any) => {
+          if (data) {
+            return data?.filter(
+              (item: any) =>
+                item.listing.publicKey.toBase58() !==
+                variables.listing.toBase58()
+            );
+          }
+        });
 
         onSuccess();
       },
@@ -300,7 +321,7 @@ function setListingState(
   listing: anchor.web3.PublicKey,
   state: web3.ListingState
 ) {
-  queryClient.setQueryData(["listing", listing.toBase58()], (data: any) => {
+  queryClient.setQueryData(getListingQueryKey(listing), (data: any) => {
     if (data) {
       return {
         ...data,

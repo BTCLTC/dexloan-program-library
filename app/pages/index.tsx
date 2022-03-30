@@ -3,7 +3,7 @@ import { Button, Divider, Flex } from "@adobe/react-spectrum";
 import { useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import type { NextPage } from "next";
 import { useRouter } from "next/router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { Listing } from "../types";
 import * as utils from "../utils";
@@ -33,6 +33,16 @@ const Listings: NextPage = () => {
       handleConnect(() => setDialog(item.listing));
     }
   }
+
+  useEffect(() => {
+    if (
+      selectedListing &&
+      selectedListing.account.borrower.toBase58() ===
+        anchorWallet?.publicKey.toBase58()
+    ) {
+      setDialog(null);
+    }
+  }, [anchorWallet, selectedListing]);
 
   return (
     <>
@@ -86,6 +96,10 @@ const Listings: NextPage = () => {
                       <Button
                         variant="cta"
                         marginY="size-200"
+                        isDisabled={
+                          item.listing.account.borrower.toBase58() ===
+                          anchorWallet?.publicKey.toBase58()
+                        }
                         onPress={() => onCreateLoan(item)}
                       >
                         Lend

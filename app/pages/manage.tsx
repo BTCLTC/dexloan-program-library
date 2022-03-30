@@ -414,13 +414,7 @@ const ListedCard: React.FC<ListingCardProps> = ({
           <Button
             marginY="size-200"
             variant="primary"
-            onPress={() =>
-              mutation.mutate({
-                escrow,
-                listing,
-                mint,
-              })
-            }
+            onPress={() => setDialog(true)}
           >
             Cancel
           </Button>

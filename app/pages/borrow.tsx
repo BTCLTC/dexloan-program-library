@@ -27,6 +27,7 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import * as web3 from "../lib/web3";
 import {
+  getNFTByOwnerQueryKey,
   useNFTByOwnerQuery,
   useMetadataFileQuery,
   NFTResult,
@@ -40,9 +41,10 @@ import { ConnectWalletButton } from "../components/button";
 const Borrow: NextPage = () => {
   const { connection } = useConnection();
   const wallet = useWallet();
+  const anchorWallet = useAnchorWallet();
 
   const [selected, setDialog] = useState<NFTResult | null>(null);
-  const queryResult = useNFTByOwnerQuery(connection, wallet?.publicKey);
+  const queryResult = useNFTByOwnerQuery(connection, anchorWallet);
 
   if (!wallet.connected) {
     return (

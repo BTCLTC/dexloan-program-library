@@ -107,6 +107,7 @@ export const useRepaymentMutation = (onSuccess: () => void) => {
     },
     {
       onError(err) {
+        console.error(err);
         if (err instanceof Error) {
           toast.error("Error: " + err.message);
         }

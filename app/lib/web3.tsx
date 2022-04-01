@@ -340,15 +340,12 @@ export async function repayLoan(
   const provider = getProvider(connection, wallet as typeof anchor.Wallet);
   const program = getProgram(provider);
 
-  const [borrowerDepositTokenAccount] =
-    await anchor.web3.PublicKey.findProgramAddress(
-      [
-        wallet.publicKey.toBuffer(),
-        splToken.TOKEN_PROGRAM_ID.toBuffer(),
-        mint.toBuffer(),
-      ],
-      splToken.ASSOCIATED_TOKEN_PROGRAM_ID
-    );
+  const tokenAccount = await connection.getTokenAccountsByOwner(
+    wallet.publicKey,
+    {
+      mint,
+    }
+  );
 
   await program.rpc.repayLoan({
     accounts: {
@@ -356,7 +353,7 @@ export async function repayLoan(
       listingAccount,
       escrowAccount,
       mint,
-      borrowerDepositTokenAccount,
+      borrowerDepositTokenAccount: tokenAccount.value[0].pubkey,
       borrower: wallet.publicKey,
       systemProgram: anchor.web3.SystemProgram.programId,
       tokenProgram: splToken.TOKEN_PROGRAM_ID,

@@ -44,73 +44,69 @@ const Listings: NextPage = () => {
     }
   }, [anchorWallet, selectedListing]);
 
+  if (queryResult.isLoading) {
+    return <LoadingPlaceholder />;
+  }
+
   return (
     <>
-      {queryResult.isLoading ? (
-        <LoadingPlaceholder />
-      ) : (
-        <Main>
-          <CardFlexContainer>
-            {queryResult.data?.map(
-              (item) =>
-                item && (
-                  <Card
-                    key={item?.listing.publicKey?.toBase58()}
-                    uri={item.metadata.data?.data?.uri}
-                  >
-                    <Typography>
-                      <Heading size="S">
-                        {item.metadata.data?.data?.name}
-                      </Heading>
-                      <Body size="S">
-                        Lend&nbsp;
-                        {item.listing.account.amount.toNumber() /
-                          anchor.web3.LAMPORTS_PER_SOL}
-                        &nbsp;SOL for upto&nbsp;
-                        <strong>
-                          {utils.toMonths(
-                            item.listing.account.duration.toNumber()
-                          )}
-                          &nbsp;months @&nbsp;
-                        </strong>
-                        <strong>
-                          {item.listing.account.basisPoints / 100}%
-                        </strong>
-                        &nbsp;APY.
-                      </Body>
-                    </Typography>
-                    <Divider size="S" marginTop="size-600" />
-                    <Flex direction="row" justifyContent="end">
-                      <Button
-                        variant="secondary"
-                        marginY="size-200"
-                        marginEnd="size-100"
-                        onPress={() =>
-                          router.push(
-                            `/listing/${item.listing.publicKey.toBase58()}`
-                          )
-                        }
-                      >
-                        View
-                      </Button>
-                      <Button
-                        variant="cta"
-                        marginY="size-200"
-                        isDisabled={
-                          item.listing.account.borrower.toBase58() ===
-                          anchorWallet?.publicKey.toBase58()
-                        }
-                        onPress={() => onCreateLoan(item)}
-                      >
-                        Lend
-                      </Button>
-                    </Flex>
-                  </Card>
-                )
-            )}
-          </CardFlexContainer>
-        </Main>
-      )}
+      <Main>
+        <CardFlexContainer>
+          {queryResult.data?.map(
+            (item) =>
+              item && (
+                <Card
+                  key={item?.listing.publicKey?.toBase58()}
+                  uri={item.metadata.data?.data?.uri}
+                >
+                  <Typography>
+                    <Heading size="S">{item.metadata.data?.data?.name}</Heading>
+                    <Body size="S">
+                      Lend&nbsp;
+                      {item.listing.account.amount.toNumber() /
+                        anchor.web3.LAMPORTS_PER_SOL}
+                      &nbsp;SOL for upto&nbsp;
+                      <strong>
+                        {utils.toMonths(
+                          item.listing.account.duration.toNumber()
+                        )}
+                        &nbsp;months @&nbsp;
+                      </strong>
+                      <strong>{item.listing.account.basisPoints / 100}%</strong>
+                      &nbsp;APY.
+                    </Body>
+                  </Typography>
+                  <Divider size="S" marginTop="size-600" />
+                  <Flex direction="row" justifyContent="end">
+                    <Button
+                      variant="secondary"
+                      marginY="size-200"
+                      marginEnd="size-100"
+                      onPress={() =>
+                        router.push(
+                          `/listing/${item.listing.publicKey.toBase58()}`
+                        )
+                      }
+                    >
+                      View
+                    </Button>
+                    <Button
+                      variant="cta"
+                      marginY="size-200"
+                      isDisabled={
+                        item.listing.account.borrower.toBase58() ===
+                        anchorWallet?.publicKey.toBase58()
+                      }
+                      onPress={() => onCreateLoan(item)}
+                    >
+                      Lend
+                    </Button>
+                  </Flex>
+                </Card>
+              )
+          )}
+        </CardFlexContainer>
+      </Main>
 
       <LoanDialog
         open={Boolean(selectedListing)}

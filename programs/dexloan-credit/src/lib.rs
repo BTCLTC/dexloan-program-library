@@ -11,28 +11,58 @@ pub mod dexloan_listings {
 
     pub const SECONDS_PER_YEAR: f64 = 31_536_000.0; 
 
-    pub fn create_pool(ctx: Context<CreatePool]>) -> ProgramResult {
-        let pool = ctx.accounts.pool;
+    pub fn create_pool(ctx: Context<CreatePool>, options: PoolOptions) -> Result<()> {
+        let pool = &mut ctx.accounts.pool;
 
         pool.owner = ctx.accounts.owner.key();
+        pool.basis_points = options.basis_points;
+        pool.collection = options.collection;
+        pool.floor_price = options.floor_price;
+
+        Ok(())
     }
 
-    pub fn borrow_from_pool(ctx: Context<BorrowFromPool>) -> ProgramResult {
+    pub fn borrow_from_pool(ctx: Context<BorrowFromPool>) -> Result<()> {
         let listing = &mut ctx.accounts.listing_account;
-        let pool = ctx.accounts.pool;
-        let amount = pool.floor_price;
+        let pool = &mut ctx.accounts.pool;
+
+        let metadata = Metadata::from_account_info(
+            &ctx.accounts.metadata_account.to_account_info()
+        )?;
+
+        if metadata.mint != ctx.accounts.mint.key() {
+            return  Err(ErrorCode::InvalidMint.into());
+        }
+
+        match metadata.collection {
+            Some(collection) => {
+                if collection.key != pool.collection {
+                    return  Err(ErrorCode::InvalidCollection.into());
+                }
+            }
+            None => {
+                return Err(ErrorCode::CollectionUndefined.into());
+            }
+        }
+
+        let pool_account_info = pool.to_account_info();
+        let lamports = pool_account_info.lamports();
+
+        if lamports < pool.floor_price {
+            return Err(ErrorCode::PoolInsufficientFunds.into());
+        }
 
         // Init
-        listing.amount = options.amount;
-        listing.basis_points = options.basis_points;
-        listing.duration = options.duration;
+        listing.amount = pool.floor_price;
+        listing.basis_points = pool.basis_points;
+        listing.third_party = pool.key();
+        listing.duration = SECONDS_PER_YEAR as u64 / 4; // 3 months standard
         listing.start_date = ctx.accounts.clock.unix_timestamp;
-        listing.borrower = ctx.accounts.borrower.key();
+        listing.owner = ctx.accounts.borrower.key();
         listing.escrow = ctx.accounts.escrow_account.key();
         listing.mint = ctx.accounts.mint.key();
-        listing.third_party = ctx.accounts.pool.key();
-        listing.listing_type = ListingType::Loan::into();
-        listing.state = ListingState::Active::into();
+        listing.listing_type = ListingType::Loan as u8;
+        listing.state = ListingState::Active as u8;
         listing.bump = *ctx.bumps.get("listing_account").unwrap();
 
         // Transfer NFT
@@ -48,18 +78,20 @@ pub mod dexloan_listings {
         // Transfer SOL
         anchor_lang::solana_program::program::invoke(
             &anchor_lang::solana_program::system_instruction::transfer(
-                &ctx.accounts.pool.key(),
-                &listing.borrower,
-                ctx.accounts.pool.floor_price,
+                &pool.key(),
+                &listing.owner,
+                pool.floor_price,
             ),
             &[
                 pool.to_account_info(),
                 ctx.accounts.borrower.to_account_info(),
             ]
         )?;
+
+        Ok(())
     }
 
-    pub fn repay_loan(ctx: Context<RepayLoan>) -> ProgramResult {
+    pub fn repay_loan(ctx: Context<RepayLoan>) -> Result<()> {
         let listing = &mut ctx.accounts.listing_account;
 
         let unix_timestamp = ctx.accounts.clock.unix_timestamp;
@@ -81,8 +113,8 @@ pub mod dexloan_listings {
 
         anchor_lang::solana_program::program::invoke(
             &anchor_lang::solana_program::system_instruction::transfer(
-                &listing.borrower,
-                &listing.lender,
+                &listing.owner,
+                &listing.third_party,
                 amount_due as u64,
             ),
             &[
@@ -146,14 +178,15 @@ pub mod dexloan_listings {
     }
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
 pub struct PoolOptions {
     collection: Pubkey,
     floor_price: u64,
-    basis_points: u64,
+    basis_points: u32,
 }
 
 #[derive(Accounts)]
-#[instriction(options: PoolOptions)]
+#[instruction(options: PoolOptions)]
 pub struct CreatePool<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -164,7 +197,9 @@ pub struct CreatePool<'info> {
             b"pool",
             owner.key().as_ref(),
             options.collection.as_ref(),
-        ]
+        ],
+        bump,
+        space = POOL_SIZE,
     )]
     pub pool: Box<Account<'info, Pool>>,
     /// misc
@@ -206,16 +241,12 @@ pub struct BorrowFromPool<'info> {
     )]
     pub escrow_account: Box<Account<'info, TokenAccount>>,
     pub mint: Box<Account<'info, Mint>>,
-    #[account(
-        constraint = metadata_account.mint == mint.key(),
-        constraint = metadata_account.collection.key == pool.collection,
-        constraint = metadata_account.collection.verified == true,
-    )]
-    pub metadata_account: Box<Account<'info, Metadata>>,
+    pub metadata_account: UncheckedAccount<'info>,
     /// misc
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
     pub rent: Sysvar<'info, Rent>,
+    pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
@@ -230,8 +261,8 @@ pub struct RepayLoan<'info> {
     pub lender: AccountInfo<'info>,
     #[account(
         mut,
-        constraint = listing_account.borrower == *borrower.key,
-        constraint = listing_account.lender == lender.key(),
+        constraint = listing_account.owner == *borrower.key,
+        constraint = listing_account.third_party == lender.key(),
         constraint = listing_account.escrow == escrow_account.key(),
         constraint = listing_account.mint == mint.key(),
         constraint = listing_account.state == ListingState::Active as u8,
@@ -254,7 +285,7 @@ pub struct RepossessCollateral<'info> {
     pub lender_token_account: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
-        constraint = listing_account.lender == *lender.key,
+        constraint = listing_account.third_party == *lender.key,
         constraint = listing_account.escrow == escrow_account.key(),
         constraint = listing_account.mint == mint.key(),
         constraint = listing_account.state == ListingState::Active as u8,
@@ -273,6 +304,7 @@ pub enum ListingState {
     Listed = 0,
     Active = 1,
     Defaulted = 2,
+    Repaid = 3,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
@@ -334,19 +366,30 @@ const POOL_SIZE: usize = 8 + // key
 60; // padding
 
 #[account]
+#[derive(Default)]
 pub struct Pool {
     /// The liquidity pool collection
     pub collection: Pubkey,
     /// The owner of the pool
     pub owner: Pubkey,
     /// The price offered for loans
-    pub floor_price: u64, 
+    pub floor_price: u64,
+    /// The rate offered 
+    pub basis_points: u32,
 }
 
-#[error]
+#[error_code]
 pub enum ErrorCode {
     #[msg("This loan is not overdue")]
     NotOverdue,
     #[msg("Invalid state")]
     InvalidState,
+    #[msg("Invalid collection")]
+    InvalidCollection,
+    #[msg("Collection undefined")]
+    CollectionUndefined,
+    #[msg("Invalid mint")]
+    InvalidMint,
+    #[msg("Insuficient funds in pool")]
+    PoolInsufficientFunds,
 }

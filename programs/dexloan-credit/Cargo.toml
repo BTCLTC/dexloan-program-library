@@ -1,6 +1,6 @@
 [package]
 name = "dexloan-credit"
-version = "0.1.0"
+version = "1.0.0"
 description = "Created with Anchor"
 edition = "2018"
 
@@ -16,4 +16,8 @@ cpi = ["no-entrypoint"]
 default = []
 
 [dependencies]
-anchor-lang = "0.23.0"
+anchor-lang = { version = "0.23.0", features = ["init-if-needed"] }
+anchor-spl = "0.23.0"
+mpl-token-metadata = "1.1.0"
+spl-token = { version = "3.3.0",  features = ["no-entrypoint"] }
+spl-associated-token-account = {version = "1.0.3", features = ["no-entrypoint"]}

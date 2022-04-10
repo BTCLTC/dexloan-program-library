@@ -1,12 +1,19 @@
+pub mod utils;
+pub mod state;
+
+use crate::utils::*;
+use crate::state::*;
 use anchor_lang::prelude::*;
 use anchor_lang::AccountsClose;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use mpl_token_metadata::state::{Metadata};
+use chrono::NaiveDateTime;
+use chronoutil::delta::{shift_months, with_day};
 
-declare_id!("H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj");
+declare_id!("todo111111111111111111111111111111111111111");
 
 #[program]
-pub mod dexloan_listings {
+pub mod dexloan_credit {
     use super::*;
 
     pub const SECONDS_PER_YEAR: f64 = 31_536_000.0; 
@@ -57,7 +64,7 @@ pub mod dexloan_listings {
         listing.basis_points = pool.basis_points;
         listing.third_party = pool.key();
         listing.duration = SECONDS_PER_YEAR as u64 / 4; // 3 months standard
-        listing.start_date = ctx.accounts.clock.unix_timestamp;
+        listing.start_timestamp = ctx.accounts.clock.unix_timestamp;
         listing.owner = ctx.accounts.borrower.key();
         listing.escrow = ctx.accounts.escrow_account.key();
         listing.mint = ctx.accounts.mint.key();
@@ -91,13 +98,55 @@ pub mod dexloan_listings {
         Ok(())
     }
 
+    pub fn pay_installment(ctx: Context<PayInstallment>) -> Result<()> {
+        let listing = &mut ctx.accounts.listing_account;
+        let unix_timestamp = ctx.accounts.clock.unix_timestamp;
+
+        let (first_installment_due, second_installment_due, _) = get_installments(listing)?;
+
+        let amount: u64;
+        let total_amount: u64;
+        let interest_payment = calc_monthly_interest_payment(listing)?;
+
+        if unix_timestamp < first_installment_due {
+            amount = listing.outstanding / 3;
+        }
+
+        else if unix_timestamp < second_installment_due {
+            amount = listing.outstanding / 2;
+        }
+
+        else {
+            amount = listing.outstanding;
+        }
+
+        total_amount = amount + interest_payment; 
+
+        // Update outstanding amount
+        ctx.accounts.listing_account.outstanding -= amount;
+    
+        anchor_lang::solana_program::program::invoke(
+            &anchor_lang::solana_program::system_instruction::transfer(
+                &ctx.accounts.borrower.key(),
+                &ctx.accounts.lender.key(),
+                total_amount,
+            ),
+            &[
+                ctx.accounts.borrower.to_account_info(),
+                ctx.accounts.lender.to_account_info(),
+            ]
+        )?;
+
+        Ok(())
+    }
+
     pub fn repay_loan(ctx: Context<RepayLoan>) -> Result<()> {
         let listing = &mut ctx.accounts.listing_account;
 
         let unix_timestamp = ctx.accounts.clock.unix_timestamp;
-        let loan_start_date = listing.start_date;
+        let loan_start_timestamp = listing.start_timestamp;
         let loan_basis_points = listing.basis_points as f64;
-        let loan_duration = (unix_timestamp - loan_start_date) as f64;
+        let loan_duration = (unix_timestamp - loan_start_timestamp) as f64;
         let pro_rata_interest_rate = ((loan_basis_points / 10_000 as f64) / SECONDS_PER_YEAR) * loan_duration;
         let interest_due = listing.amount as f64 * pro_rata_interest_rate;
         let amount_due = listing.amount + interest_due.round() as u64;
@@ -148,9 +197,8 @@ pub mod dexloan_listings {
     pub fn repossess_collateral(ctx: Context<RepossessCollateral>) -> Result<()> {
         let listing = &mut ctx.accounts.listing_account;
 
-
         let unix_timestamp = ctx.accounts.clock.unix_timestamp as u64;
-        let loan_start_date = listing.start_date as u64;
+        let loan_start_date = listing.start_timestamp as u64;
         let loan_duration = unix_timestamp - loan_start_date;
 
         if listing.duration > loan_duration  {
@@ -250,6 +298,23 @@ pub struct BorrowFromPool<'info> {
 }
 
 #[derive(Accounts)]
+pub struct PayInstallment<'info> {
+    #[account(mut)]
+    pub borrower: Signer<'info>,
+    pub lender: AccountInfo<'info>,
+    #[account(mut, 
+        constraint = listing_account.owner == borrower.key(),
+        constraint = listing_account.third_party == lender.key(),
+        constraint = listing_account.state == ListingState::Active as u8,
+    )]
+    pub listing_account: Box<Account<'info, Listing>>,
+    pub pool_account: Box<Account<'info, Pool>>,
+    /// mic
+    pub system_program: Program<'info, System>,
+    pub clock: Sysvar<'info, Clock>,
+}
+
+#[derive(Accounts)]
 pub struct RepayLoan<'info> {
     #[account(mut)]
     pub borrower: Signer<'info>,
@@ -297,85 +362,6 @@ pub struct RepossessCollateral<'info> {
     pub token_program: Program<'info, Token>,
     pub clock: Sysvar<'info, Clock>,
     pub rent: Sysvar<'info, Rent>,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
-pub enum ListingState {
-    Listed = 0,
-    Active = 1,
-    Defaulted = 2,
-    Repaid = 3,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
-pub enum ListingType {
-    Loan = 0,
-    Sale = 1,
-    CallOption = 2,
-}
-
-const LISTING_SIZE: usize = 8 + // key
-1 + // state
-1 + // listing type
-8 + // amount
-8 + // outstanding
-4 + // basis_points
-8 + // duration
-8 + // start_date
-32 + // owner
-32 + // third_party
-32 + // escrow
-32 + // mint
-1 + // bump
-1 + // escrow bump
-120; // padding
-
-#[account]
-pub struct Listing {
-    /// Whether the loan is active
-    pub state: u8,
-    /// The type of listing
-    pub listing_type: u8,
-    /// The amount of the loan
-    pub amount: u64,
-    /// The amount outstanding
-    pub outstanding: u64,
-    /// Annualized return
-    pub basis_points: u32,
-    /// Duration of the loan in seconds
-    pub duration: u64,
-    /// The start date of the loan
-    pub start_date: i64,
-    /// The listing creator
-    pub owner: Pubkey,
-    /// The issuer of the loan or the buyer
-    pub third_party: Pubkey,
-    /// The escrow where the collateral NFT is held
-    pub escrow: Pubkey,
-    /// The mint of the token being used for collateral
-    pub mint: Pubkey,
-    /// Misc
-    pub bump: u8,
-    pub escrow_bump: u8,
-}
-
-const POOL_SIZE: usize = 8 + // key
-32 + // collection
-32 + // owner
-8 + // floor_price
-60; // padding
-
-#[account]
-#[derive(Default)]
-pub struct Pool {
-    /// The liquidity pool collection
-    pub collection: Pubkey,
-    /// The owner of the pool
-    pub owner: Pubkey,
-    /// The price offered for loans
-    pub floor_price: u64,
-    /// The rate offered 
-    pub basis_points: u32,
 }
 
 #[error_code]

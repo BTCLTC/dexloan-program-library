@@ -74,14 +74,14 @@ pub mod dexloan_credit {
         let lamports = pool_account_info.lamports();
 
         if lamports < pool.floor_price {
-            return Err(ErrorCode::PoolInsufficientFunds.into());
+            return err!(ErrorCode::PoolInsufficientFunds);
         }
 
         // Init
         listing.amount = pool.floor_price;
         listing.basis_points = pool.basis_points;
         listing.third_party = pool.key();
-        listing.start_timestamp = ctx.accounts.clock.unix_timestamp;
+        listing.start_ts = ctx.accounts.clock.unix_timestamp;
         listing.owner = ctx.accounts.borrower.key();
         listing.escrow = ctx.accounts.escrow_account.key();
         listing.mint = ctx.accounts.mint.key();
@@ -117,17 +117,12 @@ pub mod dexloan_credit {
 
     pub fn pay_installment(ctx: Context<PayInstallment>) -> Result<()> {
         let listing = &mut ctx.accounts.listing_account;
-        let unix_timestamp = ctx.accounts.clock.unix_timestamp;
 
-        let amount: u64;
-        let total_amount: u64;
         let interest_payment = calc_monthly_interest_payment(listing, &ctx.accounts.clock)?;
         let payment = calc_installment_amount(listing, &ctx.accounts.clock)?;
-
-        total_amount = amount + interest_payment; 
-
+        let total_amount = payment + interest_payment; 
         // Update outstanding amount
-        listing.outstanding -= amount;
+        listing.outstanding -= payment;
     
         anchor_lang::solana_program::program::invoke(
             &anchor_lang::solana_program::system_instruction::transfer(
@@ -144,56 +139,10 @@ pub mod dexloan_credit {
         Ok(())
     }
 
-    pub fn repay_loan(ctx: Context<RepayLoan>) -> Result<()> {
+    pub fn issue_notice(ctx: Context<IssueNotice>) -> Result<()> {
         let listing = &mut ctx.accounts.listing_account;
 
-        let unix_timestamp = ctx.accounts.clock.unix_timestamp;
-        let loan_start_timestamp = listing.start_timestamp;
-        let loan_basis_points = listing.basis_points as f64;
-        let loan_duration = (unix_timestamp - loan_start_timestamp) as f64;
-        let pro_rata_interest_rate = ((loan_basis_points / 10_000 as f64) / SECONDS_PER_YEAR) * loan_duration;
-        let interest_due = listing.amount as f64 * pro_rata_interest_rate;
-        let amount_due = listing.amount + interest_due.round() as u64;
-        
-        msg!("Loan basis points: {}", loan_basis_points);
-        msg!("Loan duration: {} seconds", loan_duration);
-        msg!("Loan amount: {} LAMPORTS", listing.amount);
-        msg!("Pro Rata interest rate: {}%", pro_rata_interest_rate);
-        msg!("Interest due: {} LAMPORTS", interest_due);
-        msg!("Total amount due: {} LAMPORTS", amount_due);
-
-        listing.state = ListingState::Repaid as u8;
-
-        anchor_lang::solana_program::program::invoke(
-            &anchor_lang::solana_program::system_instruction::transfer(
-                &listing.owner,
-                &listing.third_party,
-                amount_due as u64,
-            ),
-            &[
-                ctx.accounts.borrower.to_account_info(),
-                ctx.accounts.lender.to_account_info(),
-            ]
-        )?;
-
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_accounts = anchor_spl::token::Transfer {
-            from: ctx.accounts.escrow_account.to_account_info(),
-            to: ctx.accounts.borrower_deposit_token_account.to_account_info(),
-            authority: ctx.accounts.escrow_account.to_account_info(),
-        };
-        let seeds = &[
-            b"escrow",
-            ctx.accounts.mint.to_account_info().key.as_ref(),
-            &[listing.escrow_bump],
-        ];
-        let signer = &[&seeds[..]];
-        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-        anchor_spl::token::transfer(cpi_ctx, 1)?;
-
-        ctx.accounts.listing_account.close(
-            ctx.accounts.borrower.to_account_info()
-        )?;
+        listing.notice_issued_ts = ctx.accounts.clock.unix_timestamp;
 
         Ok(())
     }
@@ -201,13 +150,7 @@ pub mod dexloan_credit {
     pub fn repossess_collateral(ctx: Context<RepossessCollateral>) -> Result<()> {
         let listing = &mut ctx.accounts.listing_account;
 
-        let unix_timestamp = ctx.accounts.clock.unix_timestamp as u64;
-        let loan_start_date = listing.start_timestamp as u64;
-        let loan_duration = unix_timestamp - loan_start_date;
-
-        if listing.duration > loan_duration  {
-            return Err(ErrorCode::NotOverdue.into())
-        }
+        require!(can_repossess(listing, &ctx.accounts.clock)?, ErrorCode::CannotRepossess);
         
         listing.state = ListingState::Defaulted as u8;
 
@@ -321,34 +264,18 @@ pub struct PayInstallment<'info> {
     )]
     pub listing_account: Box<Account<'info, Listing>>,
     pub pool_account: Box<Account<'info, Pool>>,
-    /// mic
+    /// misc
     pub system_program: Program<'info, System>,
     pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
-pub struct RepayLoan<'info> {
+pub struct IssueNotice<'info> {
+    pub lender: Signer<'info>,
     #[account(mut)]
-    pub borrower: Signer<'info>,
-    #[account(mut)]
-    pub borrower_deposit_token_account: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub escrow_account: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub lender: AccountInfo<'info>,
-    #[account(
-        mut,
-        constraint = listing_account.owner == *borrower.key,
-        constraint = listing_account.third_party == lender.key(),
-        constraint = listing_account.escrow == escrow_account.key(),
-        constraint = listing_account.mint == mint.key(),
-        constraint = listing_account.state == ListingState::Active as u8,
-    )]
     pub listing_account: Box<Account<'info, Listing>>,
-    pub mint: Box<Account<'info, Mint>>,
-    /// Misc
+    /// misc
     pub system_program: Program<'info, System>,
-    pub token_program: Program<'info, Token>,
     pub clock: Sysvar<'info, Clock>,
 }
 
@@ -393,4 +320,6 @@ pub enum ErrorCode {
     PoolInsufficientFunds,
     #[msg("Installment already paid")]
     InstallmentAlreadyPaid,
+    #[msg("Cannot repossess")]
+    CannotRepossess
 }

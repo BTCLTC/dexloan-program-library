@@ -45,8 +45,10 @@ pub struct Listing {
     pub basis_points: u32,
     /// Duration of the loan in seconds
     pub duration: u64,
-    /// The start date of the loan
-    pub start_timestamp: i64,
+    /// The start ts of the loan
+    pub start_ts: i64,
+    /// Final payment notice issued at ts
+    pub notice_issued_ts: i64,
     /// The listing creator
     pub owner: Pubkey,
     /// The issuer of the loan or the buyer
@@ -64,6 +66,7 @@ pub const POOL_SIZE: usize = 8 + // key
 32 + // collection
 32 + // owner
 8 + // floor_price
+4 + // basis_points
 60; // padding
 
 #[account]

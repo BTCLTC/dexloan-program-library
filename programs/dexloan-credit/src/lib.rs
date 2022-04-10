@@ -7,16 +7,12 @@ use anchor_lang::prelude::*;
 use anchor_lang::AccountsClose;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use mpl_token_metadata::state::{Metadata};
-use chrono::NaiveDateTime;
-use chronoutil::delta::{shift_months, with_day};
 
 declare_id!("todo111111111111111111111111111111111111111");
 
 #[program]
 pub mod dexloan_credit {
     use super::*;
-
-    pub const SECONDS_PER_YEAR: f64 = 31_536_000.0; 
 
     pub fn create_pool(ctx: Context<CreatePool>, options: PoolOptions) -> Result<()> {
         let pool = &mut ctx.accounts.pool;
@@ -25,6 +21,28 @@ pub mod dexloan_credit {
         pool.basis_points = options.basis_points;
         pool.collection = options.collection;
         pool.floor_price = options.floor_price;
+
+        Ok(())
+    }
+
+    pub fn widthdraw_from_pool(ctx: Context<WithdrawFromPool>, amount: u64) -> Result<()> {
+        let pool = &mut ctx.accounts.pool_account;
+
+        if amount > pool.to_account_info().lamports() {
+            return Err(ErrorCode::PoolInsufficientFunds.into());
+        }
+
+        anchor_lang::solana_program::program::invoke(
+            &anchor_lang::solana_program::system_instruction::transfer(
+                &pool.key(),
+                &pool.owner,
+                amount,
+            ),
+            &[
+                pool.to_account_info(),
+                ctx.accounts.owner.to_account_info(),
+            ]
+        )?;
 
         Ok(())
     }
@@ -63,7 +81,6 @@ pub mod dexloan_credit {
         listing.amount = pool.floor_price;
         listing.basis_points = pool.basis_points;
         listing.third_party = pool.key();
-        listing.duration = SECONDS_PER_YEAR as u64 / 4; // 3 months standard
         listing.start_timestamp = ctx.accounts.clock.unix_timestamp;
         listing.owner = ctx.accounts.borrower.key();
         listing.escrow = ctx.accounts.escrow_account.key();
@@ -253,6 +270,14 @@ pub struct CreatePool<'info> {
     /// misc
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawFromPool<'info> {
+    pub owner: Signer<'info>,
+    #[account(mut, constraint = owner.key() == pool_account.owner)]
+    pub pool_account: Box<Account<'info, Pool>>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]

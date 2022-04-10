@@ -119,28 +119,15 @@ pub mod dexloan_credit {
         let listing = &mut ctx.accounts.listing_account;
         let unix_timestamp = ctx.accounts.clock.unix_timestamp;
 
-        let (first_installment_due, second_installment_due, _) = get_installments(listing)?;
-
         let amount: u64;
         let total_amount: u64;
-        let interest_payment = calc_monthly_interest_payment(listing)?;
-
-        if unix_timestamp < first_installment_due {
-            amount = listing.outstanding / 3;
-        }
-
-        else if unix_timestamp < second_installment_due {
-            amount = listing.outstanding / 2;
-        }
-
-        else {
-            amount = listing.outstanding;
-        }
+        let interest_payment = calc_monthly_interest_payment(listing, &ctx.accounts.clock)?;
+        let payment = calc_installment_amount(listing, &ctx.accounts.clock)?;
 
         total_amount = amount + interest_payment; 
 
         // Update outstanding amount
-        ctx.accounts.listing_account.outstanding -= amount;
+        listing.outstanding -= amount;
     
         anchor_lang::solana_program::program::invoke(
             &anchor_lang::solana_program::system_instruction::transfer(
@@ -389,6 +376,7 @@ pub struct RepossessCollateral<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
+
 #[error_code]
 pub enum ErrorCode {
     #[msg("This loan is not overdue")]
@@ -403,4 +391,6 @@ pub enum ErrorCode {
     InvalidMint,
     #[msg("Insuficient funds in pool")]
     PoolInsufficientFunds,
+    #[msg("Installment already paid")]
+    InstallmentAlreadyPaid,
 }

@@ -196,6 +196,7 @@ pub struct ListingOptions {
 #[instruction(options: ListingOptions)]
 pub struct InitListing<'info> {
     /// The person who is listing the loan
+    #[account(mut)]
     pub borrower: Signer<'info>,
     #[account(
         mut,
@@ -258,6 +259,7 @@ pub struct CancelListing<'info> {
 #[derive(Accounts)]
 pub struct MakeLoan<'info> {
     #[account(mut)]
+    /// CHECK: TODO
     pub borrower: AccountInfo<'info>,
     #[account(mut)]
     pub lender: Signer<'info>,
@@ -286,6 +288,7 @@ pub struct RepayLoan<'info> {
     #[account(mut)]
     pub escrow_account: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
+    /// CHECK: TODO
     pub lender: AccountInfo<'info>,
     #[account(
         mut,

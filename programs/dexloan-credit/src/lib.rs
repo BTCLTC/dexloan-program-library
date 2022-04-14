@@ -4,18 +4,18 @@ pub mod state;
 use crate::utils::*;
 use crate::state::*;
 use anchor_lang::prelude::*;
-use anchor_lang::AccountsClose;
+// use anchor_lang::AccountsClose;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use mpl_token_metadata::state::{Metadata};
 
-declare_id!("todo111111111111111111111111111111111111111");
+declare_id!("gHR5K5YWRDouD6ZiFM3QeGoNYxkLRtvXLpSokk5dxAE");
 
 #[program]
 pub mod dexloan_credit {
     use super::*;
 
     pub fn create_pool(ctx: Context<CreatePool>, options: PoolOptions) -> Result<()> {
-        let pool = &mut ctx.accounts.pool;
+        let pool = &mut ctx.accounts.pool_account;
 
         pool.owner = ctx.accounts.owner.key();
         pool.basis_points = options.basis_points;
@@ -56,17 +56,22 @@ pub mod dexloan_credit {
         )?;
 
         if metadata.mint != ctx.accounts.mint.key() {
-            return  Err(ErrorCode::InvalidMint.into());
+            return  err!(ErrorCode::InvalidMint);
         }
+
+        assert_metadata_valid(
+            &ctx.accounts.metadata_account,
+            &ctx.accounts.borrower_deposit_token_account
+        )?;
 
         match metadata.collection {
             Some(collection) => {
                 if collection.key != pool.collection {
-                    return  Err(ErrorCode::InvalidCollection.into());
+                    return  err!(ErrorCode::InvalidCollection);
                 }
             }
             None => {
-                return Err(ErrorCode::CollectionUndefined.into());
+                return err!(ErrorCode::CollectionUndefined);
             }
         }
 
@@ -136,6 +141,25 @@ pub mod dexloan_credit {
             ]
         )?;
 
+        if listing.outstanding == 0 {
+            listing.state = ListingState::Repaid as u8;
+            
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_accounts = anchor_spl::token::Transfer {
+                from: ctx.accounts.escrow_account.to_account_info(),
+                to: ctx.accounts.borrower_deposit_token_account.to_account_info(),
+                authority: ctx.accounts.escrow_account.to_account_info(),
+            };
+            let seeds = &[
+                b"escrow",
+                ctx.accounts.mint.to_account_info().key.as_ref(),
+                &[listing.escrow_bump],
+            ];
+            let signer = &[&seeds[..]];
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+            anchor_spl::token::transfer(cpi_ctx, 1)?;
+        }
+
         Ok(())
     }
 
@@ -196,7 +220,7 @@ pub struct CreatePool<'info> {
         bump,
         space = POOL_SIZE,
     )]
-    pub pool: Box<Account<'info, Pool>>,
+    pub pool_account: Box<Account<'info, Pool>>,
     /// misc
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
@@ -244,6 +268,7 @@ pub struct BorrowFromPool<'info> {
     )]
     pub escrow_account: Box<Account<'info, TokenAccount>>,
     pub mint: Box<Account<'info, Mint>>,
+    /// CHECK: TODO
     pub metadata_account: UncheckedAccount<'info>,
     /// misc
     pub system_program: Program<'info, System>,
@@ -256,16 +281,24 @@ pub struct BorrowFromPool<'info> {
 pub struct PayInstallment<'info> {
     #[account(mut)]
     pub borrower: Signer<'info>,
+    #[account(mut)]
+    pub borrower_deposit_token_account: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub escrow_account: Box<Account<'info, TokenAccount>>,
+    /// CHECK: TODO
     pub lender: AccountInfo<'info>,
     #[account(mut, 
         constraint = listing_account.owner == borrower.key(),
+        constraint = listing_account.mint == mint.key(),
         constraint = listing_account.third_party == lender.key(),
         constraint = listing_account.state == ListingState::Active as u8,
     )]
     pub listing_account: Box<Account<'info, Listing>>,
+    pub mint: Box<Account<'info, Mint>>,
     pub pool_account: Box<Account<'info, Pool>>,
     /// misc
     pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
     pub clock: Sysvar<'info, Clock>,
 }
 
@@ -321,5 +354,11 @@ pub enum ErrorCode {
     #[msg("Installment already paid")]
     InstallmentAlreadyPaid,
     #[msg("Cannot repossess")]
-    CannotRepossess
+    CannotRepossess,
+    #[msg("Invalid installment interval")]
+    InvalidInstallmentInterval,
+    #[msg("Derived key invalid")]
+    DerivedKeyInvalid,
+    #[msg("Metadata does not exist")]
+    MetadataDoesntExist,
 }

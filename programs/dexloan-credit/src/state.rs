@@ -21,15 +21,15 @@ pub const LISTING_SIZE: usize = 8 + // key
 8 + // amount
 8 + // outstanding
 4 + // basis_points
-8 + // duration
 8 + // start_date
+24 + // installments
 32 + // owner
 32 + // third_party
 32 + // escrow
 32 + // mint
 1 + // bump
 1 + // escrow bump
-120; // padding
+90; // padding
 
 #[account]
 pub struct Listing {
@@ -43,10 +43,10 @@ pub struct Listing {
     pub outstanding: u64,
     /// Annualized return
     pub basis_points: u32,
-    /// Duration of the loan in seconds
-    pub duration: u64,
     /// The start ts of the loan
     pub start_ts: i64,
+    /// Payment schedule
+    pub installments: [i64; 3],
     /// Final payment notice issued at ts
     pub notice_issued_ts: i64,
     /// The listing creator
@@ -67,7 +67,7 @@ pub const POOL_SIZE: usize = 8 + // key
 32 + // owner
 8 + // floor_price
 4 + // basis_points
-60; // padding
+90; // padding
 
 #[account]
 #[derive(Default)]

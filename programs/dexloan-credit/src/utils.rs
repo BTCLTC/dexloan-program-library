@@ -1,28 +1,72 @@
 use crate::state::*;
 use crate::{ErrorCode};
 use anchor_lang::prelude::*;
-use chrono::NaiveDateTime;
-use chronoutil::{
-  delta::{shift_months,with_day},
-  RelativeDuration
-};
+use anchor_spl::token::{TokenAccount};
+use mpl_token_metadata;
+
+
+pub const SHORTEST_INTERVAL_SECONDS: i64 = 60 * 60 * 24 * 28; // Shortest month
+pub const LONGEST_INTERVAL_SECONDS: i64 = 60 * 60 * 24 * 31; // Longest month
+pub const SHORTEST_START_INTERVAL: i64 = 60 * 60 * 24 * 21; // 3 weeks
+pub const LONGEST_START_INTERVAL: i64 = 60 * 60 * 24 * 42; // 6 weeks
 
 pub fn get_installments<'a>(
   listing_account: &Account<Listing>
 ) -> Result<(i64, i64, i64)> {
-  let dt = NaiveDateTime::from_timestamp(listing_account.start_ts, 0);
-  let first_installment = with_day(shift_months(dt, 1), 5).unwrap().timestamp();
-  let second_installment = with_day(shift_months(dt, 2), 5).unwrap().timestamp();
-  let third_installment = with_day(shift_months(dt, 3), 5).unwrap().timestamp();
+  Ok((
+    listing_account.installments[0],
+    listing_account.installments[1],
+    listing_account.installments[2]
+  ))
+}
 
-  Ok((first_installment, second_installment, third_installment))
+pub fn assert_installments_valid(
+  installments: &[i64; 3],
+  clock: &Sysvar<Clock>
+) -> Result<()> {
+  let first_interval = installments[0] - clock.unix_timestamp;
+  let second_interval = installments[1] - installments[0];
+  let third_interval = installments[2] - installments[1];
+
+  if first_interval < SHORTEST_START_INTERVAL || first_interval > LONGEST_START_INTERVAL {
+    return err!(ErrorCode::InvalidInstallmentInterval);
+  }
+
+  if second_interval < SHORTEST_INTERVAL_SECONDS || second_interval > LONGEST_INTERVAL_SECONDS {
+    return err!(ErrorCode::InvalidInstallmentInterval);
+  }
+
+  if third_interval < SHORTEST_INTERVAL_SECONDS || third_interval > LONGEST_INTERVAL_SECONDS {
+    return err!(ErrorCode::InvalidInstallmentInterval);
+  }
+
+  Ok(())
+}
+
+pub fn assert_metadata_valid<'a>(
+  metadata: &UncheckedAccount,
+  token_account: &Account<'a, TokenAccount>,
+) -> Result<()> {
+  let (key, _) = mpl_token_metadata::pda::find_metadata_account(
+    &token_account.mint
+  );
+
+  if key != metadata.to_account_info().key() {
+    return err!(ErrorCode::DerivedKeyInvalid);
+  }
+
+  if metadata.data_is_empty() {
+    return err!(ErrorCode::MetadataDoesntExist);
+  }
+
+  Ok(())
 }
 
 pub fn calc_installment_amount<'a>(
   listing_account: &Account<Listing>,
   clock: &Sysvar<Clock>
 ) -> Result<u64> {
-  let (first_installment_due, second_installment_due, third_installment_due) = get_installments(listing_account)?;
+  let (first_installment_due, second_installment_due, _) = get_installments(listing_account)?;
 
   let single_installment = listing_account.amount / 3;
 
@@ -78,13 +122,13 @@ pub fn calc_monthly_interest_payment<'a>(
   Ok(monthly_interest_payment.round() as u64)
 }
 
-pub const TWO_WEEKS: i64 = 60 * 60 * 24 * 14;
+pub const ONE_WEEK: i64 = 60 * 60 * 24 * 14;
 
 pub fn can_repossess<'a>(
   listing_account: &Account<Listing>,
   clock: &Sysvar<Clock>
 ) -> Result<bool> {
-  let notice_expires_ts = listing_account.start_ts + TWO_WEEKS;
+  let notice_expires_ts = listing_account.notice_issued_ts + ONE_WEEK;
   let has_expired = clock.unix_timestamp > notice_expires_ts;
   Ok(has_expired)
 }

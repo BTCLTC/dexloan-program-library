@@ -21,5 +21,3 @@ anchor-spl = "0.22.0"
 mpl-token-metadata = { version = "1.2.5", features = ["no-entrypoint"] }
 spl-token = { version = "3.3.0",  features = ["no-entrypoint"] }
 spl-associated-token-account = {version = "1.0.3", features = ["no-entrypoint"]}
-chrono = "0.4"
-chronoutil = "0.2.3"

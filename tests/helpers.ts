@@ -14,7 +14,6 @@ export function getProvider(
   connection: anchor.web3.Connection,
   keypair: anchor.web3.Keypair
 ): anchor.Provider {
-  // @ts-expect-error
   const wallet = new anchor.Wallet(keypair);
   return new anchor.Provider(
     connection,

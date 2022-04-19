@@ -13,7 +13,7 @@ pub mod dexloan_listings {
     pub fn init_listing(
         ctx: Context<InitListing>,
         options: ListingOptions
-    ) -> ProgramResult {
+    ) -> Result<()> {
         let listing = &mut ctx.accounts.listing_account;
         // Init
         listing.bump = *ctx.bumps.get("listing_account").unwrap();
@@ -67,7 +67,7 @@ pub mod dexloan_listings {
         Ok(())
     }
 
-    pub fn make_loan(ctx: Context<MakeLoan>) -> ProgramResult {
+    pub fn make_loan(ctx: Context<MakeLoan>) -> Result<()> {
         let listing = &mut ctx.accounts.listing_account;
 
         listing.state = ListingState::Active as u8;
@@ -89,7 +89,7 @@ pub mod dexloan_listings {
         Ok(())
     }
 
-    pub fn repay_loan(ctx: Context<RepayLoan>) -> ProgramResult {
+    pub fn repay_loan(ctx: Context<RepayLoan>) -> Result<()> {
         let listing = &mut ctx.accounts.listing_account;
 
         let unix_timestamp = ctx.accounts.clock.unix_timestamp;
@@ -196,6 +196,7 @@ pub struct ListingOptions {
 #[instruction(options: ListingOptions)]
 pub struct InitListing<'info> {
     /// The person who is listing the loan
+    #[account(mut)]
     pub borrower: Signer<'info>,
     #[account(
         mut,
@@ -257,6 +258,7 @@ pub struct CancelListing<'info> {
 
 #[derive(Accounts)]
 pub struct MakeLoan<'info> {
+    /// CHECK: contrained on listing_account
     #[account(mut)]
     pub borrower: AccountInfo<'info>,
     #[account(mut)]
@@ -285,6 +287,7 @@ pub struct RepayLoan<'info> {
     pub borrower_deposit_token_account: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
     pub escrow_account: Box<Account<'info, TokenAccount>>,
+    /// CHECK: contrained on listing_account
     #[account(mut)]
     pub lender: AccountInfo<'info>,
     #[account(
@@ -392,7 +395,7 @@ pub struct Listing {
     pub discriminator: u8,
 }
 
-#[error]
+#[error_code]
 pub enum ErrorCode {
     #[msg("This loan is not overdue")]
     NotOverdue,

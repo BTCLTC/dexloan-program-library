@@ -1,0 +1,29 @@
+[test.validator]
+url = "https://api.devnet.solana.com"
+
+[[test.validator.clone]]
+address = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+
+[[test.validator.account]]
+address = "CJAcnATPYjUPzCZmzfksjqkXc13Wdm9Ni2vBbVcL3ttX"
+filename = "./accounts/TOKEN_ACCOUNT.json"
+
+[[test.validator.account]]
+address = "DTEtZLK8ScwGgjCK8nSbF78gGk6rTWLxkvc4qnYkWijj"
+filename = "./accounts/MINT.json"
+
+[[test.validator.account]]
+address = "4ndCC5sE947RUoR3xEVwMTFdiRk3MtTK4ADjwZqQKxhw"
+filename = "./accounts/METADATA.json"
+
+[[test.validator.account]]
+address = "8pqrqGekzWdfG1rmqEpNr7WYNKPixFrT6U6Pb7ew5FLs"
+filename = "./accounts/COLLECTION_TOKEN_ACCOUNT.json"
+
+[[test.validator.account]]
+address = "Hqxffvgbxfb8iKhyxCvvbdMZ8EEdBjBtsEU8tmYqQdFm"
+filename = "./accounts/COLLECTION_MINT.json"
+
+[[test.validator.account]]
+address = "5jNNGbhKRHbJJzx5MVksXDcBReepsAg1tdXAA16fEH9j"
+filename = "./accounts/COLLECTION_METADATA.json"

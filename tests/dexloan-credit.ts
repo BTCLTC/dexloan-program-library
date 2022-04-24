@@ -40,16 +40,14 @@ describe("Dexloan Credit", async () => {
 
   it("Initializes a new lending pool", async () => {
     const options = new PoolOptions();
-    options.collection = COLLECTION_MINT;
     options.floorPrice = new anchor.BN(anchor.web3.LAMPORTS_PER_SOL);
     options.basisPoints = 1_000;
-    // @ts-ignore
-    console.log(anchor.getProvider().wallet.publicKey.toBase58());
+
     const [poolAccount] = await anchor.web3.PublicKey.findProgramAddress(
       [
         Buffer.from("pool"),
-        COLLECTION_MINT.toBuffer(),
         ownerKeypair.publicKey.toBuffer(),
+        COLLECTION_MINT.toBuffer(),
       ],
       program.programId
     );
@@ -57,7 +55,8 @@ describe("Dexloan Credit", async () => {
     // Create pool account
     const tx = await program.methods.createPool(options).accounts({
       poolAccount,
-      owner: ownerKeypair.publicKey,
+      collection: COLLECTION_MINT,
+      authority: ownerKeypair.publicKey,
     });
     const keys = await tx.pubkeys();
     await tx.rpc();
@@ -79,9 +78,12 @@ describe("Dexloan Credit", async () => {
 
     const account = await program.account.pool.fetch(keys.poolAccount);
 
-    assert.equal(account.owner.toBase58(), ownerKeypair.publicKey.toBase58());
+    assert.equal(
+      account.authority.toBase58(),
+      ownerKeypair.publicKey.toBase58()
+    );
     assert.equal(account.collection.toBase58(), COLLECTION_MINT.toBase58());
-    assert.equal(account.floorPrice.toNumber(), 1_000_000);
+    assert.equal(account.floorPrice.toNumber(), anchor.web3.LAMPORTS_PER_SOL);
     assert.equal(account.basisPoints, 1_000);
   });
 
@@ -122,7 +124,6 @@ describe("Dexloan Credit", async () => {
 });
 
 class PoolOptions {
-  public collection: anchor.web3.PublicKey;
   public floorPrice: anchor.BN;
   public basisPoints: number;
 }

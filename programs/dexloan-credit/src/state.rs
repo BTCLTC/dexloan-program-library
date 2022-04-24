@@ -23,7 +23,7 @@ pub const LISTING_SIZE: usize = 8 + // key
 4 + // basis_points
 8 + // start_date
 24 + // installments
-32 + // owner
+32 + // authority
 32 + // third_party
 32 + // escrow
 32 + // mint
@@ -50,7 +50,7 @@ pub struct Listing {
     /// Final payment notice issued at ts
     pub notice_issued_ts: i64,
     /// The listing creator
-    pub owner: Pubkey,
+    pub authority: Pubkey,
     /// The issuer of the loan or the buyer
     pub third_party: Pubkey,
     /// The escrow where the collateral NFT is held
@@ -64,7 +64,7 @@ pub struct Listing {
 
 pub const POOL_SIZE: usize = 8 + // key
 32 + // collection
-32 + // owner
+32 + // authority
 8 + // floor_price
 4 + // basis_points
 90; // padding
@@ -75,7 +75,7 @@ pub struct Pool {
     /// The liquidity pool collection
     pub collection: Pubkey,
     /// The owner of the pool
-    pub owner: Pubkey,
+    pub authority: Pubkey,
     /// The price offered for loans
     pub floor_price: u64,
     /// The rate offered 

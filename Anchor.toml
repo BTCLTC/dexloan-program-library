@@ -3,8 +3,8 @@ anchor_version = "0.24.2"
 [registry]
 url = "https://anchor.projectserum.com"
 
-# [features]
-# seeds = true
+[features]
+seeds = true
 
 [programs.localnet]
 # dexloan_listings = "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
@@ -24,3 +24,10 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+
+[test]
+startup_wait = 20000
+
+[[test.validator.account]]
+address = "Hqxffvgbxfb8iKhyxCvvbdMZ8EEdBjBtsEU8tmYqQdFm"
+filename = "./tests/accounts/COLLECTION_MINT.json"

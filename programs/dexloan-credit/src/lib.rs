@@ -10,6 +10,10 @@ use mpl_token_metadata::state::{Metadata};
 
 declare_id!("gHR5K5YWRDouD6ZiFM3QeGoNYxkLRtvXLpSokk5dxAE");
 
+const POOL_PREFIX: &str = "pool";
+const LISTING_PREFIX: &str = "listing";
+const ESCROW_PREFIX: &str = "escrow";
+
 #[program]
 pub mod dexloan_credit {
     use super::*;
@@ -17,9 +21,9 @@ pub mod dexloan_credit {
     pub fn create_pool(ctx: Context<CreatePool>, options: PoolOptions) -> Result<()> {
         let pool = &mut ctx.accounts.pool_account;
 
-        pool.owner = ctx.accounts.owner.key();
+        pool.authority = ctx.accounts.authority.key();
+        pool.collection = ctx.accounts.collection.key();
         pool.basis_points = options.basis_points;
-        pool.collection = options.collection;
         pool.floor_price = options.floor_price;
 
         Ok(())
@@ -35,12 +39,12 @@ pub mod dexloan_credit {
         anchor_lang::solana_program::program::invoke(
             &anchor_lang::solana_program::system_instruction::transfer(
                 &pool.key(),
-                &pool.owner,
+                &pool.authority,
                 amount,
             ),
             &[
                 pool.to_account_info(),
-                ctx.accounts.owner.to_account_info(),
+                ctx.accounts.authority.to_account_info(),
             ]
         )?;
 
@@ -87,7 +91,7 @@ pub mod dexloan_credit {
         listing.basis_points = pool.basis_points;
         listing.third_party = pool.key();
         listing.start_ts = ctx.accounts.clock.unix_timestamp;
-        listing.owner = ctx.accounts.borrower.key();
+        listing.authority = ctx.accounts.borrower.key();
         listing.escrow = ctx.accounts.escrow_account.key();
         listing.mint = ctx.accounts.mint.key();
         listing.listing_type = ListingType::Loan as u8;
@@ -108,7 +112,7 @@ pub mod dexloan_credit {
         anchor_lang::solana_program::program::invoke(
             &anchor_lang::solana_program::system_instruction::transfer(
                 &pool.key(),
-                &listing.owner,
+                &listing.authority,
                 pool.floor_price,
             ),
             &[
@@ -199,7 +203,6 @@ pub mod dexloan_credit {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
 pub struct PoolOptions {
-    collection: Pubkey,
     floor_price: u64,
     basis_points: u32,
 }
@@ -208,14 +211,15 @@ pub struct PoolOptions {
 #[instruction(options: PoolOptions)]
 pub struct CreatePool<'info> {
     #[account(mut)]
-    pub owner: Signer<'info>,
+    pub authority: Signer<'info>,
+    pub collection: Box<Account<'info, Mint>>,
     #[account(
         init,
-        payer = owner,
+        payer = authority,
         seeds = [
-            b"pool",
-            owner.key().as_ref(),
-            options.collection.as_ref(),
+            POOL_PREFIX.as_bytes(),
+            authority.key().as_ref(),
+            collection.key().as_ref(),
         ],
         bump,
         space = POOL_SIZE,
@@ -228,8 +232,8 @@ pub struct CreatePool<'info> {
 
 #[derive(Accounts)]
 pub struct WithdrawFromPool<'info> {
-    pub owner: Signer<'info>,
-    #[account(mut, constraint = owner.key() == pool_account.owner)]
+    pub authority: Signer<'info>,
+    #[account(mut, constraint = authority.key() == pool_account.authority)]
     pub pool_account: Box<Account<'info, Pool>>,
     pub system_program: Program<'info, System>,
 }
@@ -249,7 +253,7 @@ pub struct BorrowFromPool<'info> {
         init,
         payer = borrower,
         seeds = [
-            b"listing",
+            LISTING_PREFIX.as_bytes(),
             mint.key().as_ref(),
             borrower.key().as_ref(),
         ],
@@ -261,7 +265,7 @@ pub struct BorrowFromPool<'info> {
     #[account(
         init_if_needed,
         payer = borrower,
-        seeds = [b"escrow", mint.key().as_ref()],
+        seeds = [ESCROW_PREFIX.as_bytes(), mint.key().as_ref()],
         bump,
         token::mint = mint,
         token::authority = pool,
@@ -288,7 +292,7 @@ pub struct PayInstallment<'info> {
     /// CHECK: TODO
     pub lender: AccountInfo<'info>,
     #[account(mut, 
-        constraint = listing_account.owner == borrower.key(),
+        constraint = listing_account.authority == borrower.key(),
         constraint = listing_account.mint == mint.key(),
         constraint = listing_account.third_party == lender.key(),
         constraint = listing_account.state == ListingState::Active as u8,

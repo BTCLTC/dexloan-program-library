@@ -43,7 +43,8 @@ describe("Dexloan Credit", async () => {
     options.collection = COLLECTION_MINT;
     options.floorPrice = new anchor.BN(anchor.web3.LAMPORTS_PER_SOL);
     options.basisPoints = 1_000;
-
+    // @ts-ignore
+    console.log(anchor.getProvider().wallet.publicKey.toBase58());
     const [poolAccount] = await anchor.web3.PublicKey.findProgramAddress(
       [
         Buffer.from("pool"),

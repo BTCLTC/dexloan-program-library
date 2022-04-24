@@ -1,4 +1,4 @@
-anchor_version = "0.20.1"
+anchor_version = "0.24.2"
 
 [registry]
 url = "https://anchor.projectserum.com"
@@ -7,13 +7,16 @@ url = "https://anchor.projectserum.com"
 # seeds = true
 
 [programs.localnet]
-dexloan_listings = "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
+# dexloan_listings = "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
+dexloan_credit = "gHR5K5YWRDouD6ZiFM3QeGoNYxkLRtvXLpSokk5dxAE"
 
 [programs.devnet]
-dexloan_listings = "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
+# dexloan_listings = "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
+dexloan_credit = "gHR5K5YWRDouD6ZiFM3QeGoNYxkLRtvXLpSokk5dxAE"
 
 [programs.mainnet]
-dexloan_listings = "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
+# dexloan_listings = "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
+dexloan_credit = "gHR5K5YWRDouD6ZiFM3QeGoNYxkLRtvXLpSokk5dxAE"
 
 [provider]
 cluster = "localnet"

@@ -87,18 +87,26 @@ interface RepaymentMutationProps extends RepossessMutationProps {
 }
 
 export const useRepaymentMutation = (onSuccess: () => void) => {
+  const wallet = useWallet();
   const { connection } = useConnection();
   const anchorWallet = useAnchorWallet();
   const queryClient = useQueryClient();
 
   return useMutation<void, Error, RepaymentMutationProps>(
-    ({ mint, escrow, listing, lender }) => {
+    async ({ mint, escrow, listing, lender }) => {
       if (anchorWallet) {
+        const borrowerTokenAccount = await web3.getOrCreateTokenAccount(
+          connection,
+          wallet,
+          mint
+        );
+
         return web3.repayLoan(
           connection,
           anchorWallet,
           mint,
           lender,
+          borrowerTokenAccount,
           listing,
           escrow
         );
@@ -144,17 +152,25 @@ interface CancelMutationProps extends RepossessMutationProps {}
 
 export const useCancelMutation = (onSuccess: () => void) => {
   const { connection } = useConnection();
+  const wallet = useWallet();
   const anchorWallet = useAnchorWallet();
   const queryClient = useQueryClient();
 
   return useMutation<void, Error, CancelMutationProps>(
-    ({ mint, escrow, listing }) => {
+    async ({ mint, escrow, listing }) => {
       if (anchorWallet) {
+        const borrowerTokenAccount = await web3.getOrCreateTokenAccount(
+          connection,
+          wallet,
+          mint
+        );
+
         return web3.cancelListing(
           connection,
           anchorWallet,
           mint,
           listing,
+          borrowerTokenAccount,
           escrow
         );
       }

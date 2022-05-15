@@ -304,24 +304,18 @@ export async function cancelListing(
   wallet: AnchorWallet,
   mint: anchor.web3.PublicKey,
   listingAccount: anchor.web3.PublicKey,
+  borrowerTokenAccount: anchor.web3.PublicKey,
   escrowAccount: anchor.web3.PublicKey
 ): Promise<void> {
   const provider = getProvider(connection, wallet as typeof anchor.Wallet);
   const program = getProgram(provider);
-
-  const tokenAccount = await connection.getTokenAccountsByOwner(
-    wallet.publicKey,
-    {
-      mint,
-    }
-  );
 
   await program.rpc.cancelListing({
     accounts: {
       escrowAccount,
       listingAccount,
       mint,
-      borrowerDepositTokenAccount: tokenAccount.value[0].pubkey,
+      borrowerDepositTokenAccount: borrowerTokenAccount,
       borrower: wallet.publicKey,
       systemProgram: anchor.web3.SystemProgram.programId,
       tokenProgram: splToken.TOKEN_PROGRAM_ID,
@@ -335,17 +329,11 @@ export async function repayLoan(
   mint: anchor.web3.PublicKey,
   lender: anchor.web3.PublicKey,
   listingAccount: anchor.web3.PublicKey,
+  borrowerTokenAccount: anchor.web3.PublicKey,
   escrowAccount: anchor.web3.PublicKey
 ): Promise<void> {
   const provider = getProvider(connection, wallet as typeof anchor.Wallet);
   const program = getProgram(provider);
-
-  const tokenAccount = await connection.getTokenAccountsByOwner(
-    wallet.publicKey,
-    {
-      mint,
-    }
-  );
 
   await program.rpc.repayLoan({
     accounts: {
@@ -353,7 +341,7 @@ export async function repayLoan(
       listingAccount,
       escrowAccount,
       mint,
-      borrowerDepositTokenAccount: tokenAccount.value[0].pubkey,
+      borrowerDepositTokenAccount: borrowerTokenAccount,
       borrower: wallet.publicKey,
       systemProgram: anchor.web3.SystemProgram.programId,
       tokenProgram: splToken.TOKEN_PROGRAM_ID,
@@ -387,36 +375,59 @@ export async function getOrCreateTokenAccount(
     throw new Error("Wallet public key is not set");
   }
 
-  const [tokenAccount] = await anchor.web3.PublicKey.findProgramAddress(
-    [
-      wallet.publicKey.toBuffer(),
-      splToken.TOKEN_PROGRAM_ID.toBuffer(),
-      mint.toBuffer(),
-    ],
-    splToken.ASSOCIATED_TOKEN_PROGRAM_ID
-  );
+  const response = await connection.getTokenAccountsByOwner(wallet.publicKey, {
+    mint,
+  });
 
-  const receiverAccount = await connection.getAccountInfo(tokenAccount);
+  let tokenAccount: anchor.web3.PublicKey | undefined;
 
-  if (!receiverAccount) {
-    const transaction = new anchor.web3.Transaction({
-      feePayer: wallet.publicKey,
-    });
-
-    transaction.add(
-      splToken.Token.createAssociatedTokenAccountInstruction(
-        splToken.ASSOCIATED_TOKEN_PROGRAM_ID,
-        splToken.TOKEN_PROGRAM_ID,
-        mint,
-        tokenAccount,
-        wallet.publicKey,
-        wallet.publicKey
-      )
+  // Ensure existing token account is rent exempt
+  if (response.value[0]) {
+    const rentExemptAmount = await connection.getMinimumBalanceForRentExemption(
+      response.value[0].account.data.length
     );
 
-    const txId = await wallet.sendTransaction(transaction, connection);
+    if (response.value[0].account.lamports >= rentExemptAmount) {
+      tokenAccount = response.value[0].pubkey;
+    }
+  }
 
-    await connection.confirmTransaction(txId);
+  if (tokenAccount === undefined) {
+    [tokenAccount] = await anchor.web3.PublicKey.findProgramAddress(
+      [
+        wallet.publicKey.toBuffer(),
+        splToken.TOKEN_PROGRAM_ID.toBuffer(),
+        mint.toBuffer(),
+      ],
+      splToken.ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+
+    const receiverAccount = await connection.getAccountInfo(tokenAccount);
+
+    if (!receiverAccount) {
+      const transaction = new anchor.web3.Transaction({
+        feePayer: wallet.publicKey,
+      });
+
+      transaction.add(
+        splToken.Token.createAssociatedTokenAccountInstruction(
+          splToken.ASSOCIATED_TOKEN_PROGRAM_ID,
+          splToken.TOKEN_PROGRAM_ID,
+          mint,
+          tokenAccount,
+          wallet.publicKey,
+          wallet.publicKey
+        )
+      );
+
+      const txId = await wallet.sendTransaction(transaction, connection);
+
+      await connection.confirmTransaction(txId);
+    }
+  }
+
+  if (tokenAccount === undefined) {
+    throw new Error("Could not create token account");
   }
 
   return tokenAccount;

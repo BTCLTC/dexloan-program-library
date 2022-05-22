@@ -15,7 +15,7 @@ const LISTING_PREFIX: &str = "listing";
 const ESCROW_PREFIX: &str = "escrow";
 
 #[program]
-pub mod dexloan_credit {
+pub mod dexloan_pools {
     use super::*;
 
     pub fn create_pool(ctx: Context<CreatePool>, options: PoolOptions) -> Result<()> {
@@ -155,7 +155,7 @@ pub mod dexloan_credit {
                 authority: ctx.accounts.escrow_account.to_account_info(),
             };
             let seeds = &[
-                b"escrow",
+                ESCROW_PREFIX.as_bytes(),
                 ctx.accounts.mint.to_account_info().key.as_ref(),
                 &[listing.escrow_bump],
             ];
@@ -189,7 +189,7 @@ pub mod dexloan_credit {
             authority: ctx.accounts.escrow_account.to_account_info(),
         };
         let seeds = &[
-            b"escrow",
+            ESCROW_PREFIX.as_bytes(),
             ctx.accounts.mint.to_account_info().key.as_ref(),
             &[listing.escrow_bump],
         ];

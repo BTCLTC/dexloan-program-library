@@ -7,16 +7,16 @@ url = "https://anchor.projectserum.com"
 seeds = true
 
 [programs.localnet]
-# dexloan_listings = "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
-dexloan_credit = "gHR5K5YWRDouD6ZiFM3QeGoNYxkLRtvXLpSokk5dxAE"
+dexloan_listings = "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
+dexloan_pools = "gHR5K5YWRDouD6ZiFM3QeGoNYxkLRtvXLpSokk5dxAE"
 
 [programs.devnet]
-# dexloan_listings = "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
-dexloan_credit = "gHR5K5YWRDouD6ZiFM3QeGoNYxkLRtvXLpSokk5dxAE"
+dexloan_listings = "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
+dexloan_pools = "gHR5K5YWRDouD6ZiFM3QeGoNYxkLRtvXLpSokk5dxAE"
 
 [programs.mainnet]
-# dexloan_listings = "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
-dexloan_credit = "gHR5K5YWRDouD6ZiFM3QeGoNYxkLRtvXLpSokk5dxAE"
+dexloan_listings = "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
+dexloan_pools = "gHR5K5YWRDouD6ZiFM3QeGoNYxkLRtvXLpSokk5dxAE"
 
 [provider]
 cluster = "localnet"
@@ -27,9 +27,6 @@ test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
 
 [test]
 startup_wait = 20000
-
-# [[test.validator.clone]]
-# address = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
 
 [[test.validator.account]]
 address = "Hqxffvgbxfb8iKhyxCvvbdMZ8EEdBjBtsEU8tmYqQdFm"

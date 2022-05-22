@@ -1,5 +1,5 @@
 [package]
-name = "dexloan-credit"
+name = "dexloan-pools"
 version = "1.0.0"
 description = "Created with Anchor"
 edition = "2018"

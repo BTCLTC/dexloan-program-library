@@ -1,10 +1,9 @@
 import assert from "assert";
 import * as anchor from "@project-serum/anchor";
-import * as splToken from "@solana/spl-token";
-import { NodeWallet } from "@metaplex/js";
-import { IDL } from "../target/types/dexloan_credit";
+import { DexloanPools, IDL } from "../target/types/dexloan_pools";
+import { NodeWallet } from "./helpers";
 
-const DEXLOAN_CREDIT_PROGRAM_ID = new anchor.web3.PublicKey(
+const DEXLOAN_POOLS_PROGRAM_ID = new anchor.web3.PublicKey(
   "gHR5K5YWRDouD6ZiFM3QeGoNYxkLRtvXLpSokk5dxAE"
 );
 
@@ -20,7 +19,7 @@ const METADATA = new anchor.web3.PublicKey(
   "4ndCC5sE947RUoR3xEVwMTFdiRk3MtTK4ADjwZqQKxhw"
 );
 
-describe("Dexloan Credit", async () => {
+describe.only("Dexloan Pools", async () => {
   const ownerKeypair = getOwnerKeypair();
   const connection = new anchor.web3.Connection("http://localhost:8899");
 
@@ -31,9 +30,9 @@ describe("Dexloan Credit", async () => {
       anchor.AnchorProvider.defaultOptions()
     );
 
-    const program = new anchor.Program(
+    const program = new anchor.Program<DexloanPools>(
       IDL,
-      DEXLOAN_CREDIT_PROGRAM_ID,
+      DEXLOAN_POOLS_PROGRAM_ID,
       provider
     );
 
@@ -100,9 +99,9 @@ describe("Dexloan Credit", async () => {
       anchor.AnchorProvider.defaultOptions()
     );
 
-    const program = new anchor.Program(
+    const program = new anchor.Program<DexloanPools>(
       IDL,
-      DEXLOAN_CREDIT_PROGRAM_ID,
+      DEXLOAN_POOLS_PROGRAM_ID,
       provider
     );
 

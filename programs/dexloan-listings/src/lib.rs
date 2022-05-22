@@ -20,7 +20,6 @@ pub mod dexloan_listings {
         listing.mint = ctx.accounts.mint.key();
         listing.escrow = ctx.accounts.escrow_account.key();
         listing.escrow_bump = *ctx.bumps.get("escrow_account").unwrap();
-        listing.discriminator = options.discriminator;
         // List
         listing.amount = options.amount;
         listing.basis_points = options.basis_points;
@@ -189,7 +188,6 @@ pub struct ListingOptions {
     amount: u64,
     duration: u64,
     basis_points: u32,
-    discriminator: u8,
 }
 
 #[derive(Accounts)]
@@ -201,6 +199,8 @@ pub struct InitListing<'info> {
     #[account(
         mut,
         constraint = borrower_deposit_token_account.mint == mint.key(),
+        constraint = borrower_deposit_token_account.owner == borrower.key(),
+        constraint = borrower_deposit_token_account.amount == 1
     )]
     pub borrower_deposit_token_account: Box<Account<'info, TokenAccount>>,
     /// The new listing account
@@ -211,7 +211,6 @@ pub struct InitListing<'info> {
             b"listing",
             mint.key().as_ref(),
             borrower.key().as_ref(),
-            &[options.discriminator]
         ],
         bump,
         space = LISTING_SIZE,
@@ -355,7 +354,6 @@ const LISTING_SIZE: usize = 8 + // key
 32 + // mint
 1 + // bump
 1 + // escrow bump
-1 + // disriminator
 120; // padding
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
@@ -392,7 +390,6 @@ pub struct Listing {
     /// Misc
     pub bump: u8,
     pub escrow_bump: u8,
-    pub discriminator: u8,
 }
 
 #[error_code]

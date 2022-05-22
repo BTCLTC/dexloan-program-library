@@ -1,25 +1,26 @@
 import * as anchor from "@project-serum/anchor";
 import * as splToken from "@solana/spl-token";
-import { DexloanListings } from "../target/types/dexloan_listings";
+import { IDL, DexloanListings } from "../target/types/dexloan_listings";
+
+const PROGRAM_ID = new anchor.web3.PublicKey(
+  "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
+);
 
 export function getProgram(
-  provider: anchor.Provider
+  provider: anchor.AnchorProvider
 ): anchor.Program<DexloanListings> {
-  const idl = require("../target/idl/dexloan_listings.json");
-  const programID = new anchor.web3.PublicKey(idl.metadata.address);
-  return new anchor.Program(idl, programID, provider);
+  return new anchor.Program(IDL, PROGRAM_ID, provider);
 }
 
 export function getProvider(
   connection: anchor.web3.Connection,
   keypair: anchor.web3.Keypair
-): anchor.Provider {
-  // @ts-expect-error
+): anchor.AnchorProvider {
   const wallet = new anchor.Wallet(keypair);
-  return new anchor.Provider(
+  return new anchor.AnchorProvider(
     connection,
     wallet,
-    anchor.Provider.defaultOptions()
+    anchor.AnchorProvider.defaultOptions()
   );
 }
 
@@ -37,80 +38,64 @@ export async function requestAirdrop(
 export async function mintNFT(
   connection: anchor.web3.Connection,
   keypair: anchor.web3.Keypair
-): Promise<{ mint: splToken.Token; associatedAddress: splToken.AccountInfo }> {
+): Promise<{
+  mint: anchor.web3.PublicKey;
+  associatedAddress: anchor.web3.PublicKey;
+}> {
   // Create the Mint Account for the NFT
-  const mint = await splToken.Token.createMint(
+  const mint = await splToken.createMint(
     connection,
     keypair,
     keypair.publicKey,
     null,
-    0,
-    splToken.TOKEN_PROGRAM_ID
+    0
   );
 
-  const associatedAddress = await mint.getOrCreateAssociatedAccountInfo(
+  const associatedAddress = await splToken.getOrCreateAssociatedTokenAccount(
+    connection,
+    keypair,
+    mint,
     keypair.publicKey
   );
 
-  await mint.mintTo(associatedAddress.address, keypair.publicKey, [], 1);
-
-  // Reset mint_authority to null from the user to prevent further minting
-  await mint.setAuthority(
-    mint.publicKey,
-    null,
-    "MintTokens",
-    keypair.publicKey,
-    []
+  await splToken.mintTo(
+    connection,
+    keypair,
+    mint,
+    associatedAddress.address,
+    keypair,
+    1
   );
 
-  return { mint, associatedAddress };
+  // Reset mint_authority to null from the user to prevent further minting
+  await splToken.setAuthority(
+    connection,
+    keypair,
+    mint,
+    keypair.publicKey,
+    0,
+    null
+  );
+
+  return { mint, associatedAddress: associatedAddress.address };
 }
 
 export class ListingOptions {
   public amount;
   public basisPoints;
   public duration;
-  public discriminator;
-}
-
-function getDiscriminator(excluded: number) {
-  let n = Math.floor(Math.random() * 255);
-  if (n >= excluded) n++;
-  return n;
 }
 
 export async function findListingAddress(
-  connection: anchor.web3.Connection,
   mint: anchor.web3.PublicKey,
-  borrower: anchor.web3.PublicKey,
-  programId: anchor.web3.PublicKey,
-  excluded: number = 256
-): Promise<[anchor.web3.PublicKey, number]> {
-  const discriminator = getDiscriminator(excluded);
-
+  borrower: anchor.web3.PublicKey
+): Promise<anchor.web3.PublicKey> {
   const [listingAccount] = await anchor.web3.PublicKey.findProgramAddress(
-    [
-      Buffer.from("listing"),
-      mint.toBuffer(),
-      borrower.toBuffer(),
-      new anchor.BN(discriminator).toBuffer(),
-    ],
-    programId
+    [Buffer.from("listing"), mint.toBuffer(), borrower.toBuffer()],
+    PROGRAM_ID
   );
 
-  const account = await connection.getAccountInfo(listingAccount);
-
-  if (account === null) {
-    return [listingAccount, discriminator];
-  }
-
-  return findListingAddress(
-    connection,
-    mint,
-    borrower,
-    programId,
-    discriminator
-  );
+  return listingAccount;
 }
 
 export async function initListing(
@@ -128,15 +113,10 @@ export async function initListing(
 
   const { mint, associatedAddress } = await mintNFT(connection, keypair);
 
-  const [listingAccount, discriminator] = await findListingAddress(
-    connection,
-    mint.publicKey,
-    keypair.publicKey,
-    program.programId
-  );
+  const listingAccount = await findListingAddress(mint, keypair.publicKey);
 
   const [escrowAccount] = await anchor.web3.PublicKey.findProgramAddress(
-    [Buffer.from("escrow"), mint.publicKey.toBuffer()],
+    [Buffer.from("escrow"), mint.toBuffer()],
     program.programId
   );
 
@@ -144,20 +124,20 @@ export async function initListing(
   listingOptions.amount = new anchor.BN(options.amount);
   listingOptions.basisPoints = new anchor.BN(options.basisPoints);
   listingOptions.duration = new anchor.BN(options.duration);
-  listingOptions.discriminator = discriminator;
 
-  await program.rpc.initListing(listingOptions, {
-    accounts: {
+  await program.methods
+    .initListing(listingOptions)
+    .accounts({
+      mint,
       escrowAccount,
       listingAccount,
       borrower: keypair.publicKey,
-      borrowerDepositTokenAccount: associatedAddress.address,
-      mint: mint.publicKey,
+      borrowerDepositTokenAccount: associatedAddress,
       tokenProgram: splToken.TOKEN_PROGRAM_ID,
       rent: anchor.web3.SYSVAR_RENT_PUBKEY,
       systemProgram: anchor.web3.SystemProgram.programId,
-    },
-  });
+    })
+    .rpc();
 
   return {
     mint,
@@ -176,17 +156,18 @@ export async function createLoan(connection: anchor.web3.Connection, borrower) {
   const program = getProgram(provider);
   await requestAirdrop(connection, keypair.publicKey);
 
-  await program.rpc.makeLoan({
-    accounts: {
+  await program.methods
+    .makeLoan()
+    .accounts({
       listingAccount: borrower.listingAccount,
       borrower: borrower.keypair.publicKey,
       lender: keypair.publicKey,
-      mint: borrower.mint.publicKey,
+      mint: borrower.mint,
       systemProgram: anchor.web3.SystemProgram.programId,
       tokenProgram: splToken.TOKEN_PROGRAM_ID,
       clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
-    },
-  });
+    })
+    .rpc();
 
   return {
     keypair,

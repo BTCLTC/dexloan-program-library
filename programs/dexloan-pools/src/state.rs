@@ -1,42 +1,31 @@
 use anchor_lang::prelude::*;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
-pub enum ListingState {
-    Listed = 0,
-    Active = 1,
-    Defaulted = 2,
-    Repaid = 3,
+pub enum LoanState {
+    Active = 0,
+    Defaulted = 1,
+    Repaid = 2,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
-pub enum ListingType {
-    Loan = 0,
-    Sale = 1,
-    CallOption = 2,
-}
-
-pub const LISTING_SIZE: usize = 8 + // key
+pub const LOAN_SIZE: usize = 8 + // key
 1 + // state
-1 + // listing type
 8 + // amount
 8 + // outstanding
 4 + // basis_points
 8 + // start_date
 24 + // installments
-32 + // authority
-32 + // third_party
-32 + // escrow
+32 + // borrower
+32 + // pool
 32 + // mint
+32 + // escrow
 1 + // bump
-1 + // escrow bump
+1 + // escrow_bump
 90; // padding
 
 #[account]
-pub struct Listing {
+pub struct Loan {
     /// Whether the loan is active
     pub state: u8,
-    /// The type of listing
-    pub listing_type: u8,
     /// The amount of the loan
     pub amount: u64,
     /// The amount outstanding
@@ -49,14 +38,14 @@ pub struct Listing {
     pub installments: [i64; 3],
     /// Final payment notice issued at ts
     pub notice_issued_ts: i64,
-    /// The listing creator
-    pub authority: Pubkey,
+    /// The borrower
+    pub borrower: Pubkey,
     /// The issuer of the loan or the buyer
-    pub third_party: Pubkey,
-    /// The escrow where the collateral NFT is held
-    pub escrow: Pubkey,
+    pub pool: Pubkey,
     /// The mint of the token being used for collateral
     pub mint: Pubkey,
+    /// The escrow account
+    pub escrow: Pubkey,
     /// Misc
     pub bump: u8,
     pub escrow_bump: u8,

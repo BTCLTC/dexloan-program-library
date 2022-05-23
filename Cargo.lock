@@ -482,22 +482,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "dexloan-pools"
-version = "1.0.0"
-dependencies = [
- "anchor-lang",
- "anchor-spl",
- "mpl-token-metadata",
- "spl-associated-token-account",
- "spl-token",
-]
-
-[[package]]
 name = "dexloan_listings"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
+ "spl-associated-token-account",
+ "spl-token",
+]
+
+[[package]]
+name = "dexloan_pools"
+version = "1.0.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "mpl-token-metadata",
  "spl-associated-token-account",
  "spl-token",
 ]

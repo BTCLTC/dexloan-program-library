@@ -11,12 +11,12 @@ pub const SHORTEST_START_INTERVAL: i64 = 60 * 60 * 24 * 21; // 3 weeks
 pub const LONGEST_START_INTERVAL: i64 = 60 * 60 * 24 * 42; // 6 weeks
 
 pub fn get_installments<'a>(
-  listing_account: &Account<Listing>
+  loan: &Account<Loan>
 ) -> Result<(i64, i64, i64)> {
   Ok((
-    listing_account.installments[0],
-    listing_account.installments[1],
-    listing_account.installments[2]
+    loan.installments[0],
+    loan.installments[1],
+    loan.installments[2]
   ))
 }
 
@@ -63,27 +63,27 @@ pub fn assert_metadata_valid<'a>(
 }
 
 pub fn calc_installment_amount<'a>(
-  listing_account: &Account<Listing>,
+  loan: &Account<Loan>,
   clock: &Sysvar<Clock>
 ) -> Result<u64> {
-  let (first_installment_due, second_installment_due, _) = get_installments(listing_account)?;
+  let (first_installment_due, second_installment_due, _) = get_installments(loan)?;
 
-  let single_installment = listing_account.amount / 3;
+  let single_installment = loan.amount / 3;
 
-  if listing_account.outstanding == listing_account.amount {
+  if loan.outstanding == loan.amount {
     return Ok(single_installment);
   }
 
   else if 
     clock.unix_timestamp > first_installment_due &&
-    listing_account.outstanding == (listing_account.amount - single_installment) {
+    loan.outstanding == (loan.amount - single_installment) {
     return Ok(single_installment);
   }
 
   else if
     clock.unix_timestamp > second_installment_due &&
-    listing_account.outstanding == (listing_account.amount - (single_installment * 2)) {
-    return Ok(listing_account.outstanding);
+    loan.outstanding == (loan.amount - (single_installment * 2)) {
+    return Ok(loan.outstanding);
   }
   
   else {
@@ -92,30 +92,30 @@ pub fn calc_installment_amount<'a>(
 }
 
 pub fn is_payment_overdue<'a>(
-  listing_account: &Account<Listing>,
+  loan: &Account<Loan>,
   clock: &Sysvar<Clock>
 ) -> Result<bool> {
-  let (first_installment_due, second_installment_due, third_installment_due) = get_installments(listing_account)?;
+  let (first_installment_due, second_installment_due, third_installment_due) = get_installments(loan)?;
 
   let is_overdue = 
     clock.unix_timestamp > third_installment_due ||
-    (listing_account.outstanding == listing_account.amount && clock.unix_timestamp > first_installment_due) ||
-    (listing_account.outstanding == (listing_account.amount - (listing_account.amount / 3)) && clock.unix_timestamp > second_installment_due);
+    (loan.outstanding == loan.amount && clock.unix_timestamp > first_installment_due) ||
+    (loan.outstanding == (loan.amount - (loan.amount / 3)) && clock.unix_timestamp > second_installment_due);
 
   Ok(is_overdue)
 }
 
 pub fn calc_monthly_interest_payment<'a>(
-  listing_account: &Account<Listing>,
+  loan: &Account<Loan>,
   clock: &Sysvar<Clock>
 ) -> Result<u64> {
-  let interest_rate = (listing_account.basis_points / 12) as f64;
-  let outstanding = listing_account.outstanding as f64;
+  let interest_rate = (loan.basis_points / 12) as f64;
+  let outstanding = loan.outstanding as f64;
   let mut monthly_interest_payment = (outstanding * interest_rate) / 10_000 as f64;
 
-  if is_payment_overdue(listing_account, clock)? {
+  if is_payment_overdue(loan, clock)? {
     // 5% fee on outstanding amount is added for late payments
-    let late_payment_fee = (listing_account.outstanding / 20) as f64;
+    let late_payment_fee = (loan.outstanding / 20) as f64;
     monthly_interest_payment = monthly_interest_payment + late_payment_fee;
   }
 
@@ -125,7 +125,7 @@ pub fn calc_monthly_interest_payment<'a>(
 pub const ONE_WEEK: i64 = 60 * 60 * 24 * 14;
 
 pub fn can_repossess<'a>(
-  listing_account: &Account<Listing>,
+  listing_account: &Account<Loan>,
   clock: &Sysvar<Clock>
 ) -> Result<bool> {
   let notice_expires_ts = listing_account.notice_issued_ts + ONE_WEEK;

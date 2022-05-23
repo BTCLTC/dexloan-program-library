@@ -1,5 +1,6 @@
 import assert from "assert";
 import * as anchor from "@project-serum/anchor";
+import * as splToken from "@solana/spl-token";
 import { DexloanPools, IDL } from "../target/types/dexloan_pools";
 import { NodeWallet } from "./helpers";
 
@@ -47,7 +48,7 @@ describe.only("Dexloan Pools", async () => {
 
     await provider.connection.confirmTransaction(txId);
 
-    const [poolAccount] = await anchor.web3.PublicKey.findProgramAddress(
+    const [pool] = await anchor.web3.PublicKey.findProgramAddress(
       [
         Buffer.from("pool"),
         ownerKeypair.publicKey.toBuffer(),
@@ -58,7 +59,7 @@ describe.only("Dexloan Pools", async () => {
 
     // Create pool account
     const tx = await program.methods.createPool(options).accounts({
-      poolAccount,
+      pool,
       collection: COLLECTION_MINT,
       authority: ownerKeypair.publicKey,
     });
@@ -69,7 +70,7 @@ describe.only("Dexloan Pools", async () => {
     const transaction = new anchor.web3.Transaction().add(
       anchor.web3.SystemProgram.transfer({
         fromPubkey: ownerKeypair.publicKey,
-        toPubkey: keys.poolAccount,
+        toPubkey: keys.pool,
         lamports: anchor.web3.LAMPORTS_PER_SOL * 4,
       })
     );
@@ -80,7 +81,7 @@ describe.only("Dexloan Pools", async () => {
       [ownerKeypair]
     );
 
-    const account = await program.account.pool.fetch(keys.poolAccount);
+    const account = await program.account.pool.fetch(keys.pool);
 
     assert.equal(
       account.authority.toBase58(),
@@ -92,7 +93,7 @@ describe.only("Dexloan Pools", async () => {
   });
 
   it("Creates a loan", async () => {
-    const borrowerKeypair = anchor.web3.Keypair.generate();
+    const borrowerKeypair = getBorrowerKeypair();
     const provider = new anchor.AnchorProvider(
       connection,
       new NodeWallet(borrowerKeypair),
@@ -112,7 +113,7 @@ describe.only("Dexloan Pools", async () => {
 
     await provider.connection.confirmTransaction(txId);
 
-    const [poolAccount] = await anchor.web3.PublicKey.findProgramAddress(
+    const [poolAddress] = await anchor.web3.PublicKey.findProgramAddress(
       [
         Buffer.from("pool"),
         ownerKeypair.publicKey.toBuffer(),
@@ -121,9 +122,9 @@ describe.only("Dexloan Pools", async () => {
       program.programId
     );
 
-    const [listingAddress] = await anchor.web3.PublicKey.findProgramAddress(
+    const [loanAddress] = await anchor.web3.PublicKey.findProgramAddress(
       [
-        Buffer.from("listing"),
+        Buffer.from("loan"),
         MINT.toBuffer(),
         borrowerKeypair.publicKey.toBuffer(),
       ],
@@ -136,20 +137,23 @@ describe.only("Dexloan Pools", async () => {
     );
 
     const tokenAccount = new anchor.web3.PublicKey(
-      "CJAcnATPYjUPzCZmzfksjqkXc13Wdm9Ni2vBbVcL3ttX"
+      "8pqrqGekzWdfG1rmqEpNr7WYNKPixFrT6U6Pb7ew5FLs"
     );
 
     await program.methods
       .borrowFromPool()
       .accounts({
-        pool: poolAccount,
+        pool: poolAddress,
         borrower: borrowerKeypair.publicKey,
         borrowerDepositTokenAccount: tokenAccount,
-        listingAccount: listingAddress,
-        escrowAccount: escrowAddress,
+        loan: loanAddress,
+        escrow: escrowAddress,
         mint: MINT,
-        metadataAccount: METADATA,
+        metadata: METADATA,
         clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        tokenProgram: splToken.TOKEN_PROGRAM_ID,
+        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
       })
       .rpc();
   });

@@ -19,4 +19,4 @@ default = []
 anchor-lang = { version = "0.24.2", features = ["init-if-needed"] }
 anchor-spl = "0.24.2"
 spl-token = { version = "3.2",  features = ["no-entrypoint"] }
-spl-associated-token-account = {version = "1.0.3", features = ["no-entrypoint"]}
+spl-associated-token-account = { version = "1.0.3", features = ["no-entrypoint"] }

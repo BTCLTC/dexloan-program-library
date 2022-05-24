@@ -256,7 +256,7 @@ describe("dexloan_listings", () => {
     }
   });
 
-  it("Allows loans an overdue loan to be repossessed", async () => {
+  it("Allows an overdue loan to be repossessed", async () => {
     const options = {
       amount: anchor.web3.LAMPORTS_PER_SOL,
       basisPoints: 500,
@@ -282,7 +282,7 @@ describe("dexloan_listings", () => {
     await lender.program.methods
       .repossessCollateral()
       .accounts({
-        escrowAccount: listing.escrow,
+        escrowAccount: borrower.escrowAccount,
         lender: lender.keypair.publicKey,
         lenderTokenAccount: tokenAccount.address,
         listingAccount: borrower.listingAccount,
@@ -336,7 +336,7 @@ describe("dexloan_listings", () => {
     await lender.program.methods
       .repossessCollateral()
       .accounts({
-        escrowAccount: listing.escrow,
+        escrowAccount: borrower.escrowAccount,
         lender: lender.keypair.publicKey,
         lenderTokenAccount: tokenAccount.address,
         listingAccount: borrower.listingAccount,

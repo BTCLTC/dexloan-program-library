@@ -9,6 +9,8 @@ pub const SHORTEST_INTERVAL_SECONDS: i64 = 60 * 60 * 24 * 28; // Shortest month
 pub const LONGEST_INTERVAL_SECONDS: i64 = 60 * 60 * 24 * 31; // Longest month
 pub const SHORTEST_START_INTERVAL: i64 = 60 * 60 * 24 * 21; // 3 weeks
 pub const LONGEST_START_INTERVAL: i64 = 60 * 60 * 24 * 42; // 6 weeks
+pub const NOTICE_PERIOD: i64 = 60 * 60 * 24 * 3; /// 3 days
+pub const AUCTION_PERIOD: i64 = 60 * 60 * 24 * 3; /// 3 days
 
 pub fn get_installments<'a>(
   loan: &Account<Loan>
@@ -122,13 +124,39 @@ pub fn calc_monthly_interest_payment<'a>(
   Ok(monthly_interest_payment.round() as u64)
 }
 
-pub const ONE_WEEK: i64 = 60 * 60 * 24 * 14;
-
-pub fn can_repossess<'a>(
-  listing_account: &Account<Loan>,
+pub fn can_auction<'a>(
+  loan: &Account<Loan>,
   clock: &Sysvar<Clock>
 ) -> Result<bool> {
-  let notice_expires_ts = listing_account.notice_issued_ts + ONE_WEEK;
+  let notice_expires_ts = loan.notice_issued_ts + NOTICE_PERIOD;
   let has_expired = clock.unix_timestamp > notice_expires_ts;
   Ok(has_expired)
+}
+
+pub fn auction_ended<'a>(
+  auction: &Account<Auction>,
+  clock: &Sysvar<Clock>
+) -> Result<bool> {
+  let auction_end_ts = auction.start_ts + AUCTION_PERIOD;
+  let has_ended = clock.unix_timestamp > auction_end_ts;
+  Ok(has_ended)
+}
+
+pub fn is_valid_bid<'a>(
+  auction: &Account<Auction>,
+  bid: &Bid,
+) -> Result<bool> {
+  let current_bids = auction.bids.len();
+
+  if current_bids == 0 {
+    return Ok(true)
+  }
+
+  let last_bid = auction.bids[current_bids - 1];
+
+  if bid.amount > last_bid.amount {
+    return Ok(true)
+  }
+
+  Ok(false)
 }

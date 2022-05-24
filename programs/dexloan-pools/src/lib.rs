@@ -13,6 +13,8 @@ declare_id!("gHR5K5YWRDouD6ZiFM3QeGoNYxkLRtvXLpSokk5dxAE");
 const POOL_PREFIX: &str = "pool";
 const LOAN_PREFIX: &str = "loan";
 const ESCROW_PREFIX: &str = "escrow";
+const AUCTION_PREFIX: &str = "auction";
+const BID_PREFIX: &str = "bid";
 
 #[program]
 pub mod dexloan_pools {
@@ -25,6 +27,7 @@ pub mod dexloan_pools {
         pool.collection = ctx.accounts.collection.key();
         pool.basis_points = options.basis_points;
         pool.floor_price = options.floor_price;
+        pool.bump = *ctx.bumps.get("pool").unwrap();
 
         Ok(())
     }
@@ -109,17 +112,17 @@ pub mod dexloan_pools {
         anchor_spl::token::transfer(cpi_ctx, 1)?;
 
         // Transfer SOL
-        // anchor_lang::solana_program::program::invoke(
-        //     &anchor_lang::solana_program::system_instruction::transfer(
-        //         &pool.key(),
-        //         &loan.borrower,
-        //         pool.floor_price,
-        //     ),
-        //     &[
-        //         pool.to_account_info(),
-        //         ctx.accounts.borrower.to_account_info(),
-        //     ]
-        // )?;
+        anchor_lang::solana_program::program::invoke(
+            &anchor_lang::solana_program::system_instruction::transfer(
+                &pool.key(),
+                &loan.borrower,
+                pool.floor_price,
+            ),
+            &[
+                pool.to_account_info(),
+                ctx.accounts.borrower.to_account_info(),
+            ]
+        )?;
 
         Ok(())
     }
@@ -175,29 +178,58 @@ pub mod dexloan_pools {
         Ok(())
     }
 
-    pub fn repossess_collateral(ctx: Context<RepossessCollateral>) -> Result<()> {
+    pub fn auction_collateral(ctx: Context<AuctionCollateral>, price_floor: u64) -> Result<()> {
         let loan = &mut ctx.accounts.loan;
+        let auction = &mut ctx.accounts.auction;
 
-        require!(can_repossess(loan, &ctx.accounts.clock)?, ErrorCode::CannotRepossess);
+        require!(can_auction(loan, &ctx.accounts.clock)?, ErrorCode::CannotAuction);
         
         loan.state = LoanState::Defaulted as u8;
 
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_accounts = anchor_spl::token::Transfer {
-            from: ctx.accounts.escrow.to_account_info(),
-            to: ctx.accounts.lender_token_account.to_account_info(),
-            authority: ctx.accounts.escrow.to_account_info(),
-        };
-        let seeds = &[
-            ESCROW_PREFIX.as_bytes(),
-            ctx.accounts.mint.to_account_info().key.as_ref(),
-            &[loan.escrow_bump],
-        ];
-        let signer = &[&seeds[..]];
-        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-        anchor_spl::token::transfer(cpi_ctx, 1)?;
+        auction.loan = loan.key();
+        auction.start_ts = ctx.accounts.clock.unix_timestamp;
+        auction.price_floor = price_floor;
+        auction.bump = *ctx.bumps.get("auction").unwrap();
         
         Ok(())
+    }
+
+    pub fn place_bid(ctx: Context<PlaceBid>, bid: Bid) -> Result<()> {
+        let auction = &mut ctx.accounts.auction;
+        let bidder = &mut ctx.accounts.bidder;
+        let bid_escrow = &mut ctx.accounts.bid_escrow;
+
+        require!(auction_ended(auction, &ctx.accounts.clock)?, ErrorCode::AuctionEnded);
+        require!(is_valid_bid(auction, &bid)?, ErrorCode::InvalidBid);
+
+        let current_bids = auction.bids.len();
+
+        if current_bids == MAX_BIDS {
+            auction.bids.remove(0);
+        }
+
+        auction.bids.push(bid);
+        auction.last_bid_ts = ctx.accounts.clock.unix_timestamp;
+
+        anchor_lang::solana_program::program::invoke(
+            &anchor_lang::solana_program::system_instruction::transfer(
+                &bidder.key(),
+                &bid_escrow.key(),
+                bid.amount,
+            ),
+            &[
+                bidder.to_account_info(),
+                bid_escrow.to_account_info(),
+            ]
+        )?;
+
+        Ok(())
+    }
+
+    pub fn cancel_bid(ctx: Context<PlaceBid>, bid: Bid) -> Result<()> {
+        let auction = &mut ctx.accounts.auction;
+        let bidder = &mut ctx.accounts.bidder;
+        let bid_escrow = &mut ctx.accounts.bid_escrow;
     }
 }
 
@@ -273,7 +305,7 @@ pub struct BorrowFromPool<'info> {
     )]
     pub escrow: Box<Account<'info, TokenAccount>>,
     pub mint: Box<Account<'info, Mint>>,
-    /// CHECK: TODO
+    /// CHECK: Metadata account is decoded and checked
     pub metadata: UncheckedAccount<'info>,
     /// misc
     pub system_program: Program<'info, System>,
@@ -309,21 +341,6 @@ pub struct PayInstallment<'info> {
 #[derive(Accounts)]
 pub struct IssueNotice<'info> {
     pub lender: Signer<'info>,
-    #[account(mut)]
-    pub loan: Box<Account<'info, Loan>>,
-    /// misc
-    pub system_program: Program<'info, System>,
-    pub clock: Sysvar<'info, Clock>,
-}
-
-#[derive(Accounts)]
-pub struct RepossessCollateral<'info> {
-    #[account(mut)]
-    pub escrow: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub lender: Signer<'info>,
-    #[account(mut)]
-    pub lender_token_account: Box<Account<'info, TokenAccount>>,
     #[account(
         constraint = pool.authority == lender.key(),
     )]
@@ -331,17 +348,107 @@ pub struct RepossessCollateral<'info> {
     #[account(
         mut,
         constraint = loan.pool == pool.key(),
-        constraint = loan.escrow == escrow.key(),
-        constraint = loan.mint == mint.key(),
         constraint = loan.state == LoanState::Active as u8,
     )]
     pub loan: Box<Account<'info, Loan>>,
-    pub mint: Box<Account<'info, Mint>>,
+    /// misc
+    pub system_program: Program<'info, System>,
+    pub clock: Sysvar<'info, Clock>,
+}
+
+#[derive(Accounts)]
+#[instruction(options: u64)]
+pub struct AuctionCollateral<'info> {
+    #[account(mut)]
+    pub lender: Signer<'info>,
+    #[account(
+        constraint = pool.authority == lender.key(),
+    )]
+    pub pool: Box<Account<'info, Pool>>,
+    #[account(
+        constraint = loan.pool == pool.key(),
+        constraint = loan.state == LoanState::Active as u8,
+    )]
+    pub loan: Box<Account<'info, Loan>>,
+    #[account(
+        init,
+        payer = lender,
+        seeds = [
+            AUCTION_PREFIX.as_bytes(),
+            loan.key().as_ref(),
+        ],
+        bump,
+        space = AUCTION_SIZE
+    )]
+    pub auction: Box<Account<'info, Auction>>,
     /// Misc
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
     pub clock: Sysvar<'info, Clock>,
     pub rent: Sysvar<'info, Rent>,
+}
+
+#[derive(Accounts)]
+#[instruction(options: Bid)]
+pub struct PlaceBid<'info> {
+    #[account(mut)]
+    pub bidder: Signer<'info>,
+    pub borrower: AccountInfo<'info>,
+    pub mint: Account<'info, Mint>,
+    #[account(
+        seeds = [
+            LOAN_PREFIX.as_bytes(),
+            mint.key().as_ref(),
+            borrower.key().as_ref(),
+        ],
+        bump = loan.bump,
+    )]
+    pub loan: Account<'info, Loan>,
+    #[account(
+        mut,
+        seeds = [
+            AUCTION_PREFIX.as_bytes(),
+            loan.key().as_ref(),
+        ],
+        bump = auction.bump,
+    )]
+    pub auction: Account<'info, Auction>,
+    #[account(
+        init,
+        payer = bidder,
+        seeds = [
+            BID_PREFIX.as_bytes(),
+            auction.key().as_ref(),
+            bidder.key().as_ref(),
+        ],
+        space = 8,
+        bump,
+    )]
+    pub bid_escrow: AccountInfo<'info>,
+    // Misc
+    pub clock: Sysvar<'info, Clock>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct CancelBid<'info> {
+    #[account(mut)]
+    pub bidder: Signer<'info>,
+    #[account(mut)]
+    pub auction: Account<'info, Auction>,
+    #[account(
+        mut,
+        seeds = [
+            BID_PREFIX.as_bytes(),
+            auction.key().as_ref(),
+            bidder.key().as_ref(),
+        ],
+        bump,
+    )]
+    pub bid_escrow: AccountInfo<'info>,
+    // Misc
+    pub clock: Sysvar<'info, Clock>,
+    pub system_program: Program<'info, System>,
 }
 
 
@@ -361,8 +468,12 @@ pub enum ErrorCode {
     PoolInsufficientFunds,
     #[msg("Installment already paid")]
     InstallmentAlreadyPaid,
-    #[msg("Cannot repossess")]
-    CannotRepossess,
+    #[msg("Cannot start auction")]
+    CannotAuction,
+    #[msg("Invalid bid")]
+    InvalidBid,
+    #[msg("Auction has ended")]
+    AuctionEnded,
     #[msg("Invalid installment interval")]
     InvalidInstallmentInterval,
     #[msg("Derived key invalid")]

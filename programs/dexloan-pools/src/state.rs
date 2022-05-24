@@ -3,8 +3,8 @@ use anchor_lang::prelude::*;
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
 pub enum LoanState {
     Active = 0,
-    Defaulted = 1,
-    Repaid = 2,
+    Repaid = 1,
+    Defaulted = 2,
 }
 
 pub const LOAN_SIZE: usize = 8 + // key
@@ -51,11 +51,48 @@ pub struct Loan {
     pub escrow_bump: u8,
 }
 
+pub const MAX_BIDS: usize = 5;
+pub const BID_SIZE: usize = 32 + 8;
+pub const AUCTION_SIZE: usize = 8 + // key
+8 + // start_ts
+8 + // last_bid_ts
+8 + // price_floor
+32 + // loan
+(BID_SIZE * MAX_BIDS) + // bids
+1; // bump
+
+
+#[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
+pub struct Bid {
+    /// The amount of the bid
+    pub amount: u64,
+    /// The bidder
+    pub bidder: Pubkey,
+}
+
+#[account]
+pub struct Auction {
+    /// The start date of the auction
+    pub start_ts: i64,
+    /// The most recent bid
+    pub last_bid_ts: i64,
+    /// The auctions's reserve price
+    pub price_floor: u64,
+    /// The loan being auctioned
+    pub loan: Pubkey,
+    /// Auction Bids, each user may have one bid open at a time
+    /// 3 highest bids are kept in the auction
+    pub bids: Vec<Bid>,
+    /// Misc
+    pub bump: u8,
+}
+
 pub const POOL_SIZE: usize = 8 + // key
 32 + // collection
 32 + // authority
 8 + // floor_price
 4 + // basis_points
+1 + // bump
 90; // padding
 
 #[account]
@@ -69,4 +106,6 @@ pub struct Pool {
     pub floor_price: u64,
     /// The rate offered 
     pub basis_points: u32,
+    /// Misc
+    pub bump: u8,
 }

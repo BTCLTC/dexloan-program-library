@@ -16,6 +16,10 @@ const MINT = new anchor.web3.PublicKey(
   "DTEtZLK8ScwGgjCK8nSbF78gGk6rTWLxkvc4qnYkWijj"
 );
 
+const MINT_TOKEN_ACCOUNT = new anchor.web3.PublicKey(
+  "HZKTfAZvu6HaFLQkago5CrHaEqzU3FAHes2BFth1wt8c"
+);
+
 const METADATA = new anchor.web3.PublicKey(
   "4ndCC5sE947RUoR3xEVwMTFdiRk3MtTK4ADjwZqQKxhw"
 );
@@ -136,16 +140,12 @@ describe.only("Dexloan Pools", async () => {
       program.programId
     );
 
-    const tokenAccount = new anchor.web3.PublicKey(
-      "8pqrqGekzWdfG1rmqEpNr7WYNKPixFrT6U6Pb7ew5FLs"
-    );
-
     await program.methods
       .borrowFromPool()
       .accounts({
         pool: poolAddress,
         borrower: borrowerKeypair.publicKey,
-        borrowerDepositTokenAccount: tokenAccount,
+        borrowerDepositTokenAccount: MINT_TOKEN_ACCOUNT,
         loan: loanAddress,
         escrow: escrowAddress,
         mint: MINT,

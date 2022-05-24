@@ -41,7 +41,7 @@ address = "5jNNGbhKRHbJJzx5MVksXDcBReepsAg1tdXAA16fEH9j"
 filename = "./tests/accounts/COLLECTION_METADATA.json"
 
 [[test.validator.account]]
-address = "8pqrqGekzWdfG1rmqEpNr7WYNKPixFrT6U6Pb7ew5FLs"
+address = "HZKTfAZvu6HaFLQkago5CrHaEqzU3FAHes2BFth1wt8c"
 filename = "./tests/accounts/TOKEN_ACCOUNT.json"
 
 [[test.validator.account]]

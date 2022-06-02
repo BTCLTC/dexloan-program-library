@@ -1,6 +1,6 @@
 [package]
 name = "dexloan_listings"
-version = "0.1.0"
+version = "1.0.0"
 description = "Created with Anchor"
 edition = "2018"
 
@@ -18,5 +18,5 @@ default = []
 [dependencies]
 anchor-lang = { version = "0.24.2", features = ["init-if-needed"] }
 anchor-spl = "0.24.2"
-spl-token = { version = "3.2",  features = ["no-entrypoint"] }
-spl-associated-token-account = { version = "1.0.3", features = ["no-entrypoint"] }
+spl-token = { version = "3.3.0",  features = ["no-entrypoint"] }
+spl-associated-token-account = { version = "1.0.5", features = ["no-entrypoint"] }

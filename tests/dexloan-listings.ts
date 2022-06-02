@@ -6,7 +6,7 @@ import * as helpers from "./helpers";
 describe("dexloan_listings", () => {
   // Configure the client to use the local cluster.
   const connection = new anchor.web3.Connection(
-    "http://localhost:8899",
+    "http://127.0.0.1:8899",
     anchor.AnchorProvider.defaultOptions().preflightCommitment
   );
 

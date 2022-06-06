@@ -19,9 +19,9 @@ pub mod dexloan_listings {
     ) -> Result<()> {
         let listing = &mut ctx.accounts.listing_account;
         // Init
-        listing.bump = *ctx.bumps.get("listing_account").unwrap();
         listing.mint = ctx.accounts.mint.key();
         listing.escrow = ctx.accounts.escrow_account.key();
+        listing.bump = *ctx.bumps.get("listing_account").unwrap();
         listing.escrow_bump = *ctx.bumps.get("escrow_account").unwrap();
         // List
         listing.amount = options.amount;
@@ -54,7 +54,7 @@ pub mod dexloan_listings {
             authority: ctx.accounts.escrow_account.to_account_info(),
         };
         let seeds = &[
-            b"escrow",
+            ESCROW_PREFIX.as_bytes(),
             ctx.accounts.mint.to_account_info().key.as_ref(),
             &[listing.escrow_bump],
         ];

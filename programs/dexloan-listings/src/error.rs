@@ -4,6 +4,8 @@ use anchor_lang::prelude::*;
 pub enum DexloanError {
     #[msg("This loan is not overdue")]
     NotOverdue,
+    #[msg("Not expired")]
+    NotExpired,
     #[msg("Invalid expiry")]
     InvalidExpiry,
     #[msg("Invalid state")]
@@ -20,6 +22,12 @@ pub enum DexloanError {
     DerivedKeyInvalid,
     #[msg("Option not expired")]
     OptionNotExpired,
-    #[msg("NumericalOverflow")]
-    NumericalOverflow
+    #[msg("Numerical overflow")]
+    NumericalOverflow,
+    #[msg("Borrower not specified")]
+    BorrowerNotSpecified,
+    #[msg("Invalid escrow balance")]
+    InvalidEscrowBalance,
+    #[msg("Invalid token account delegate")]
+    InvalidDelegate
 }

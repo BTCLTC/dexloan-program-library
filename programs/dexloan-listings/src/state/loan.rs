@@ -20,7 +20,7 @@ pub struct Loan {
     /// Annualized return
     pub basis_points: u32,
     /// Duration of the loan in seconds
-    pub duration: u64,
+    pub duration: i64,
     /// The start date of the loan
     pub start_date: i64,
     /// The mint of the token being used for collateral

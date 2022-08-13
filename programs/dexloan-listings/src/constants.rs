@@ -1,0 +1,1 @@
+pub const SECONDS_PER_DAY: i64 = 86_400;

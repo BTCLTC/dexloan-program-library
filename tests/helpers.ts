@@ -345,7 +345,7 @@ export async function buyCallOption(
   await requestAirdrop(connection, keypair.publicKey);
 
   try {
-    await program.methods
+    const signature = await program.methods
       .buyCallOption()
       .accounts({
         seller: seller.keypair.publicKey,
@@ -360,6 +360,12 @@ export async function buyCallOption(
         clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
       })
       .rpc();
+
+    const latestBlockhash = await connection.getLatestBlockhash();
+    await connection.confirmTransaction({
+      signature,
+      ...latestBlockhash,
+    });
   } catch (error) {
     console.log(error.logs);
     throw error;
@@ -398,8 +404,6 @@ export async function initHire(
       sellerFeeBasisPoints: 500,
     })
     .run();
-
-  await wait(2);
 
   const largestAccounts = await connection.getTokenLargestAccounts(
     nft.mint.address

@@ -775,7 +775,7 @@ describe("dexloan_listings", () => {
       });
     });
 
-    describe("Call option expiry", () => {
+    describe.only("Call option expiry", () => {
       let options;
       let seller: Awaited<ReturnType<typeof helpers.initCallOption>>;
       let buyer: Awaited<ReturnType<typeof helpers.buyCallOption>>;
@@ -797,8 +797,8 @@ describe("dexloan_listings", () => {
         );
 
         assert.equal(
-          sellerTokenAccount.delegate,
-          seller.callOptionAccount.toBase58()
+          sellerTokenAccount.delegate.toBase58(),
+          seller.tokenManager.toBase58()
         );
         assert.equal(
           callOption.seller.toBase58(),
@@ -812,12 +812,24 @@ describe("dexloan_listings", () => {
       });
 
       it("Buys a call option", async () => {
+        const sellerBeforeBalance = await connection.getBalance(
+          seller.keypair.publicKey
+        );
+
         buyer = await helpers.buyCallOption(connection, seller);
 
         const callOption = await seller.program.account.callOption.fetch(
           seller.callOptionAccount
         );
-
+        const sellerAfterBalance = await connection.getBalance(
+          seller.keypair.publicKey
+        );
+        const estimatedSellerBalance = sellerBeforeBalance + options.amount;
+        assert.equal(
+          sellerAfterBalance,
+          estimatedSellerBalance,
+          "seller balance"
+        );
         assert.equal(
           callOption.seller.toBase58(),
           seller.keypair.publicKey.toBase58()
@@ -826,17 +838,21 @@ describe("dexloan_listings", () => {
       });
 
       it("Cannot be exercised if expired", async () => {
-        console.log("waiting...");
-        await helpers.wait(20);
-
-        const tokenAccount = await splToken.getOrCreateAssociatedTokenAccount(
-          connection,
-          buyer.keypair,
-          seller.mint,
-          buyer.keypair.publicKey
+        const callOption = await seller.program.account.callOption.fetch(
+          seller.callOptionAccount
         );
+        const now = Date.now() / 1000;
+        const timeUntilExpiry = Math.ceil(callOption.expiry.toNumber() - now);
+        await helpers.wait(timeUntilExpiry + 1);
 
         try {
+          const tokenAccount = await splToken.getOrCreateAssociatedTokenAccount(
+            connection,
+            buyer.keypair,
+            seller.mint,
+            buyer.keypair.publicKey
+          );
+
           await buyer.program.methods
             .exerciseCallOption()
             .accounts({
@@ -867,6 +883,7 @@ describe("dexloan_listings", () => {
           .accounts({
             seller: seller.keypair.publicKey,
             callOption: seller.callOptionAccount,
+            tokenManager: seller.tokenManager,
             depositTokenAccount: seller.depositTokenAccount,
             mint: seller.mint,
             edition: seller.edition,

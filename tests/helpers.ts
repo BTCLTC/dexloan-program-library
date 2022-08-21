@@ -123,40 +123,6 @@ export async function findMetadataAddress(mint: anchor.web3.PublicKey) {
   );
 }
 
-// Don't worry these keypairs are only for testing!
-export function getBorrowerKeypair() {
-  return anchor.web3.Keypair.fromSecretKey(
-    new Uint8Array([
-      71, 35, 95, 48, 212, 238, 241, 57, 118, 77, 120, 148, 138, 225, 184, 200,
-      163, 169, 55, 8, 181, 69, 2, 6, 107, 129, 115, 87, 113, 58, 117, 26, 57,
-      7, 172, 250, 17, 17, 24, 22, 59, 192, 224, 136, 245, 121, 67, 41, 137,
-      218, 59, 249, 200, 31, 142, 149, 179, 204, 75, 22, 43, 108, 22, 243,
-    ])
-  );
-}
-
-export function getLenderKeypair() {
-  return anchor.web3.Keypair.fromSecretKey(
-    new Uint8Array([
-      114, 81, 242, 139, 161, 245, 117, 122, 191, 227, 244, 80, 105, 25, 54,
-      130, 50, 10, 108, 40, 18, 31, 172, 3, 70, 36, 143, 141, 249, 8, 119, 33,
-      254, 50, 70, 83, 150, 213, 73, 182, 129, 95, 147, 188, 176, 50, 61, 176,
-      36, 62, 183, 123, 23, 105, 183, 6, 188, 94, 237, 150, 115, 108, 2, 187,
-    ])
-  );
-}
-
-export function getThirdPartyKeypair() {
-  return anchor.web3.Keypair.fromSecretKey(
-    new Uint8Array([
-      172, 52, 187, 213, 156, 166, 82, 226, 150, 59, 75, 132, 21, 42, 250, 2,
-      158, 157, 186, 190, 211, 49, 59, 27, 3, 86, 103, 28, 40, 101, 9, 116, 31,
-      40, 124, 145, 153, 59, 204, 5, 53, 8, 156, 208, 12, 27, 28, 187, 132, 148,
-      4, 42, 128, 61, 200, 133, 253, 113, 253, 109, 138, 65, 47, 247,
-    ])
-  );
-}
-
 export type LoanBorrower = Awaited<ReturnType<typeof initLoan>>;
 export type LoanLender = Awaited<ReturnType<typeof giveLoan>>;
 
@@ -168,10 +134,11 @@ export async function initLoan(
     duration: number;
   }
 ) {
-  const keypair = getBorrowerKeypair();
+  const keypair = anchor.web3.Keypair.generate();
   const provider = getProvider(connection, keypair);
   const program = getProgram(provider);
-  console.log("borrower: ", keypair.publicKey.toBase58());
+  await requestAirdrop(connection, keypair.publicKey);
+
   const metaplex = Metaplex.make(connection).use(keypairIdentity(keypair));
 
   const { nft } = await metaplex
@@ -192,8 +159,6 @@ export async function initLoan(
     nft.mint.address,
     keypair.publicKey
   );
-
-  await wait(2);
 
   const largestAccounts = await connection.getTokenLargestAccounts(
     nft.mint.address
@@ -241,10 +206,10 @@ export async function giveLoan(
   connection: anchor.web3.Connection,
   borrower: Awaited<ReturnType<typeof initLoan>>
 ) {
-  const keypair = getLenderKeypair();
+  const keypair = anchor.web3.Keypair.generate();
   const provider = getProvider(connection, keypair);
   const program = getProgram(provider);
-  console.log("lender: ", keypair.publicKey.toBase58());
+  await requestAirdrop(connection, keypair.publicKey);
 
   try {
     await program.methods
@@ -275,17 +240,12 @@ export async function giveLoan(
 export type CallOptionSeller = Awaited<ReturnType<typeof initCallOption>>;
 export type CallOptionBuyer = Awaited<ReturnType<typeof buyCallOption>>;
 
-export async function initCallOption(
+export async function mintNFT(
   connection: anchor.web3.Connection,
-  options: {
-    amount: number;
-    strikePrice: number;
-    expiry: number;
-  }
+  keypair: anchor.web3.Keypair
 ) {
-  const keypair = getBorrowerKeypair();
-  const provider = getProvider(connection, keypair);
-  const program = getProgram(provider);
+  const creator = anchor.web3.Keypair.generate().publicKey;
+  await requestAirdrop(connection, creator);
 
   const metaplex = Metaplex.make(connection).use(keypairIdentity(keypair));
 
@@ -295,10 +255,32 @@ export async function initCallOption(
       uri: "https://arweave.net/123",
       name: "My NFT",
       sellerFeeBasisPoints: 500,
+      creators: [
+        {
+          address: creator,
+          verified: false,
+          share: 100,
+        },
+      ],
     })
     .run();
 
-  await wait(2);
+  return nft;
+}
+
+export async function initCallOption(
+  connection: anchor.web3.Connection,
+  options: {
+    amount: number;
+    strikePrice: number;
+    expiry: number;
+  }
+) {
+  const keypair = anchor.web3.Keypair.generate();
+  const provider = getProvider(connection, keypair);
+  const program = getProgram(provider);
+  await requestAirdrop(connection, keypair.publicKey);
+  const nft = await mintNFT(connection, keypair);
 
   const largestAccounts = await connection.getTokenLargestAccounts(
     nft.mint.address
@@ -357,11 +339,10 @@ export async function buyCallOption(
   connection: anchor.web3.Connection,
   seller: Awaited<ReturnType<typeof initCallOption>>
 ) {
-  const keypair = getLenderKeypair();
+  const keypair = anchor.web3.Keypair.generate();
   const provider = getProvider(connection, keypair);
   const program = getProgram(provider);
-  // await requestAirdrop(connection, keypair.publicKey);
-  console.log("buyer: ", keypair.publicKey.toBase58());
+  await requestAirdrop(connection, keypair.publicKey);
 
   try {
     await program.methods
@@ -371,7 +352,6 @@ export async function buyCallOption(
         buyer: keypair.publicKey,
         callOption: seller.callOptionAccount,
         tokenManager: seller.tokenManager,
-        depositTokenAccount: seller.depositTokenAccount,
         mint: seller.mint,
         edition: seller.edition,
         metadataProgram: METADATA_PROGRAM_ID,
@@ -403,9 +383,10 @@ export async function initHire(
     borrower?: anchor.web3.PublicKey;
   }
 ) {
-  const keypair = getBorrowerKeypair();
+  const keypair = anchor.web3.Keypair.generate();
   const provider = getProvider(connection, keypair);
   const program = getProgram(provider);
+  await requestAirdrop(connection, keypair.publicKey);
 
   const metaplex = Metaplex.make(connection).use(keypairIdentity(keypair));
 
@@ -474,9 +455,10 @@ export async function takeHire(
   lender: Awaited<ReturnType<typeof initHire>>,
   days: number
 ) {
-  const keypair = getLenderKeypair();
+  const keypair = anchor.web3.Keypair.generate();
   const provider = getProvider(connection, keypair);
   const program = getProgram(provider);
+  await requestAirdrop(connection, keypair.publicKey);
 
   const tokenAccount = await splToken.getOrCreateAssociatedTokenAccount(
     connection,

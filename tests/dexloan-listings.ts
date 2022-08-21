@@ -10,7 +10,7 @@ import * as helpers from "./helpers";
 describe("dexloan_listings", () => {
   // Configure the client to use the local cluster.
   const connection = new anchor.web3.Connection(
-    "https://api.devnet.solana.com",
+    "http://127.0.0.1:8899",
     anchor.AnchorProvider.defaultOptions().preflightCommitment
   );
 
@@ -43,7 +43,7 @@ describe("dexloan_listings", () => {
         assert.deepEqual(tokenManager.accounts, {
           hire: false,
           callOption: false,
-          loan: false,
+          loan: true,
         });
         assert.equal(
           borrowerTokenAccount.delegate.toBase58(),
@@ -61,18 +61,15 @@ describe("dexloan_listings", () => {
       });
 
       it("Freezes tokens after initialization", async () => {
-        const receiver = helpers.getLenderKeypair();
+        const receiver = anchor.web3.Keypair.generate();
+        await helpers.requestAirdrop(connection, receiver.publicKey);
 
-        const receiverTokenAccount = (
-          await splToken.getOrCreateAssociatedTokenAccount(
-            connection,
-            receiver,
-            borrower.mint,
-            receiver.publicKey
-          )
-        ).address;
-
-        await helpers.wait(1);
+        const receiverTokenAccount = await splToken.createAccount(
+          connection,
+          receiver,
+          borrower.mint,
+          receiver.publicKey
+        );
 
         try {
           await splToken.transfer(
@@ -286,7 +283,7 @@ describe("dexloan_listings", () => {
         assert.deepEqual(tokenManager.accounts, {
           hire: false,
           callOption: false,
-          loan: false,
+          loan: true,
         });
         assert.equal(
           borrowerTokenAccount.delegate.toBase58(),
@@ -533,11 +530,11 @@ describe("dexloan_listings", () => {
     });
   });
 
-  describe("Call Options", () => {
+  describe.only("Call Options", () => {
     describe("Exercise call option", () => {
       let options;
-      let seller: Awaited<ReturnType<typeof helpers.initCallOption>>;
-      let buyer: Awaited<ReturnType<typeof helpers.buyCallOption>>;
+      let seller: helpers.CallOptionSeller;
+      let buyer: helpers.CallOptionBuyer;
 
       it("Creates a dexloan call option", async () => {
         options = {
@@ -550,14 +547,22 @@ describe("dexloan_listings", () => {
         const callOption = await seller.program.account.callOption.fetch(
           seller.callOptionAccount
         );
+        const tokenManager = await seller.program.account.tokenManager.fetch(
+          seller.tokenManager
+        );
         const sellerTokenAccount = await splToken.getAccount(
           connection,
           seller.depositTokenAccount
         );
 
+        assert.deepEqual(tokenManager.accounts, {
+          hire: false,
+          callOption: true,
+          loan: false,
+        });
         assert.equal(
-          sellerTokenAccount.delegate,
-          seller.callOptionAccount.toBase58()
+          sellerTokenAccount.delegate.toBase58(),
+          seller.tokenManager.toBase58()
         );
         assert.equal(
           callOption.seller.toBase58(),
@@ -571,18 +576,15 @@ describe("dexloan_listings", () => {
       });
 
       it("Freezes tokens after initialization", async () => {
-        const receiver = helpers.getLenderKeypair();
+        const receiver = anchor.web3.Keypair.generate();
+        await helpers.requestAirdrop(connection, receiver.publicKey);
 
-        const receiverTokenAccount = (
-          await splToken.getOrCreateAssociatedTokenAccount(
-            connection,
-            receiver,
-            seller.mint,
-            receiver.publicKey
-          )
-        ).address;
-
-        await helpers.wait(1);
+        const receiverTokenAccount = await splToken.createAccount(
+          connection,
+          receiver,
+          seller.mint,
+          receiver.publicKey
+        );
 
         try {
           await splToken.transfer(
@@ -619,7 +621,9 @@ describe("dexloan_listings", () => {
             .closeCallOption()
             .accounts({
               callOption: seller.callOptionAccount,
+              tokenManager: seller.tokenManager,
               seller: seller.keypair.publicKey,
+              depositTokenAccount: seller.depositTokenAccount,
               mint: seller.mint,
               edition: seller.edition,
               metadataProgram: METADATA_PROGRAM_ID,
@@ -630,15 +634,13 @@ describe("dexloan_listings", () => {
             .rpc();
           assert.fail("Active call option was closed!");
         } catch (err) {
-          assert.ok(true);
+          assert(err instanceof anchor.AnchorError);
+          assert.equal(err.error.errorCode.number, 6009);
+          assert.equal(err.error.errorCode.code, "OptionNotExpired");
         }
       });
 
       it("Exercises a call option", async () => {
-        const beforeExerciseBalance = await connection.getBalance(
-          buyer.keypair.publicKey
-        );
-
         const tokenAccount = await splToken.getOrCreateAssociatedTokenAccount(
           connection,
           buyer.keypair,
@@ -649,12 +651,22 @@ describe("dexloan_listings", () => {
         const [metadataAddress] = await helpers.findMetadataAddress(
           seller.mint
         );
+        const metadata = await Metadata.fromAccountAddress(
+          connection,
+          metadataAddress
+        );
 
-        const accountInfo = await connection.getAccountInfo(metadataAddress);
-        const [metadata] = Metadata.fromAccountInfo(accountInfo);
+        const beforeBuyerBalance = await connection.getBalance(
+          buyer.keypair.publicKey
+        );
+        const beforeSellerBalance = await connection.getBalance(
+          seller.keypair.publicKey
+        );
+
+        let txFee;
 
         try {
-          await buyer.program.methods
+          const signature = await buyer.program.methods
             .exerciseCallOption()
             .accounts({
               seller: seller.keypair.publicKey,
@@ -680,13 +692,25 @@ describe("dexloan_listings", () => {
               }))
             )
             .rpc();
+
+          const latestBlockhash = await connection.getLatestBlockhash();
+          await connection.confirmTransaction({
+            signature,
+            ...latestBlockhash,
+          });
+          const tx = await connection.getTransaction(signature, {
+            commitment: "confirmed",
+          });
+          txFee = tx.meta.fee;
         } catch (err) {
-          console.log(err);
-          assert.fail(err.message);
+          assert.fail(err);
         }
 
-        const afterExerciseBalance = await connection.getBalance(
+        const afterBuyerBalance = await connection.getBalance(
           buyer.keypair.publicKey
+        );
+        const afterSellerBalance = await connection.getBalance(
+          seller.keypair.publicKey
         );
         const callOption = await seller.program.account.callOption.fetch(
           seller.callOptionAccount
@@ -696,9 +720,21 @@ describe("dexloan_listings", () => {
           tokenAccount.address
         );
 
+        const creatorFees =
+          (metadata.data.sellerFeeBasisPoints / 10_000) *
+          callOption.strikePrice.toNumber();
+
+        const estimatedBuyerBalance =
+          beforeBuyerBalance - options.strikePrice - txFee;
+
+        const estimatedSellerBalance =
+          beforeSellerBalance + (options.strikePrice - creatorFees);
+
+        assert.equal(estimatedBuyerBalance, afterBuyerBalance, "buyer balance");
         assert.equal(
-          beforeExerciseBalance - anchor.web3.LAMPORTS_PER_SOL - 5000,
-          afterExerciseBalance
+          estimatedSellerBalance,
+          afterSellerBalance,
+          "seller balance"
         );
         assert.deepEqual(callOption.state, { exercised: {} });
         assert.equal(buyerTokenAccount.amount, BigInt(1));
@@ -710,6 +746,7 @@ describe("dexloan_listings", () => {
           .accounts({
             seller: seller.keypair.publicKey,
             callOption: seller.callOptionAccount,
+            tokenManager: seller.tokenManager,
             depositTokenAccount: seller.depositTokenAccount,
             mint: seller.mint,
             edition: seller.edition,
@@ -1239,7 +1276,6 @@ describe("dexloan_listings", () => {
             .accounts({
               hire: hireAddress,
               hireEscrow: hireEscrowAddress,
-              hireTokenAccount: hireTokenAccount.address,
               borrower: borrower.keypair.publicKey,
               lender: lender.keypair.publicKey,
               lenderTokenAccount: lenderTokenAccount.address,

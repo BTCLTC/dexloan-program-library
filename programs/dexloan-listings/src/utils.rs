@@ -205,7 +205,7 @@ pub fn thaw_and_transfer_from_token_account<'info>(
         issuer_pubkey.as_ref(),
         signer_bump
     ][..]];
-  
+
     thaw(
         FreezeParams {
             delegate: token_manager.to_account_info(),
@@ -217,7 +217,6 @@ pub fn thaw_and_transfer_from_token_account<'info>(
     )?;
 
     if from_token_account.key() != to_token_account.key() {
-        msg!("Transferring NFT to {:?}", to_token_account);
         anchor_spl::token::transfer(
             CpiContext::new_with_signer(
                 token_program.to_account_info(),

@@ -28,6 +28,7 @@ pub struct ExerciseCallOption<'info> {
     )]
     pub call_option: Box<Account<'info, CallOption>>,
     #[account(
+        mut,
         seeds = [
             TokenManager::PREFIX,
             mint.key().as_ref(),
@@ -82,11 +83,11 @@ pub fn handle_exercise_call_option<'info>(ctx: Context<'_, '_, '_, 'info, Exerci
     thaw_and_transfer_from_token_account(
         token_manager,
         ctx.accounts.token_program.to_account_info(),
+        ctx.accounts.seller.to_account_info(),
         ctx.accounts.deposit_token_account.to_account_info(),
         ctx.accounts.buyer_token_account.to_account_info(),
         ctx.accounts.mint.to_account_info(),
         ctx.accounts.edition.to_account_info(),
-        ctx.accounts.seller.to_account_info()
     )?;
 
     let remaining_amount = pay_creator_fees(
@@ -96,6 +97,9 @@ pub fn handle_exercise_call_option<'info>(ctx: Context<'_, '_, '_, 'info, Exerci
         &ctx.accounts.metadata.to_account_info(),
         &ctx.accounts.buyer.to_account_info(),
     )?;  
+
+    msg!("remaining_amount {}", remaining_amount);
+    msg!("paid to creators {}", call_option.strike_price - remaining_amount);
 
     anchor_lang::solana_program::program::invoke(
         &anchor_lang::solana_program::system_instruction::transfer(

@@ -7,13 +7,13 @@ url = "https://anchor.projectserum.com"
 # seeds = true
 
 [programs.localnet]
-dexloan_listings = "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
+dexloan_listings = "8hSdpqHU7jz4C6C1kHUPQNMqBcC76n1BFXbHaTwd9X4c"
 
 [programs.devnet]
-dexloan_listings = "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
+dexloan_listings = "8hSdpqHU7jz4C6C1kHUPQNMqBcC76n1BFXbHaTwd9X4c"
 
 [programs.mainnet]
-dexloan_listings = "H6FCxCy2KCPJwCoUb9eQCSv41WZBKQaYfB6x5oFajzfj"
+dexloan_listings = "8hSdpqHU7jz4C6C1kHUPQNMqBcC76n1BFXbHaTwd9X4c"
 
 [provider]
 cluster = "localnet"
@@ -21,3 +21,12 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+
+[test]
+startup_wait = 20000
+
+[test.validator]
+url = "https://api.mainnet-beta.solana.com" 
+
+[[test.validator.clone]]
+address = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"

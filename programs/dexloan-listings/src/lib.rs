@@ -118,4 +118,9 @@ pub mod dexloan_listings {
     pub fn close_hire<'info>(ctx: Context<'_, '_, '_, 'info, CloseHire<'info>>) -> Result<()> {
         handle_close_hire(ctx)
     }
+
+    // Collection
+    pub fn init_collection(ctx: Context<InitCollection>) -> Result<()> {
+        handle_init_collection(ctx)
+    }
 }

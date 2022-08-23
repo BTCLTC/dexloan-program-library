@@ -14,6 +14,38 @@ describe("dexloan_listings", () => {
     anchor.AnchorProvider.defaultOptions().preflightCommitment
   );
 
+  describe.only("Collections", () => {
+    const keypair = anchor.web3.Keypair.fromSecretKey(
+      new Uint8Array([
+        124, 208, 255, 155, 233, 90, 118, 131, 46, 39, 251, 139, 128, 39, 102,
+        95, 152, 29, 11, 251, 94, 142, 210, 207, 43, 45, 190, 97, 177, 241, 91,
+        213, 133, 38, 232, 90, 89, 239, 206, 32, 37, 195, 180, 213, 193, 236,
+        43, 164, 196, 151, 160, 8, 134, 116, 139, 146, 73, 139, 186, 20, 80,
+        144, 207, 225,
+      ])
+    );
+    const provider = helpers.getProvider(connection, keypair);
+    const program = helpers.getProgram(provider);
+
+    it("Initializes a collection", async () => {
+      await helpers.requestAirdrop(connection, keypair.publicKey);
+      const nft = await helpers.mintNFT(connection, keypair);
+
+      const collection = await helpers.findCollectionAddress(
+        nft.collection.address
+      );
+
+      await program.methods
+        .initCollection()
+        .accounts({
+          collection,
+          authority: keypair.publicKey,
+          collectionMint: nft.collection.address,
+        })
+        .rpc();
+    });
+  });
+
   describe("Loans", () => {
     describe("Loan repossessions", () => {
       let borrower: helpers.LoanBorrower;
@@ -913,7 +945,7 @@ describe("dexloan_listings", () => {
     });
   });
 
-  describe.only("Hires", () => {
+  describe("Hires", () => {
     describe("Specified borrower", async () => {
       let lender: helpers.HireLender;
       let borrowerTokenAccount: anchor.web3.PublicKey;

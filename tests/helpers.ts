@@ -1,6 +1,6 @@
 import * as anchor from "@project-serum/anchor";
 import * as splToken from "@solana/spl-token";
-import { Metaplex, keypairIdentity } from "@metaplex-foundation/js";
+import { Metaplex, keypairIdentity, NftClient } from "@metaplex-foundation/js";
 import {
   Metadata,
   PROGRAM_ID as METADATA_PROGRAM_ID,
@@ -44,16 +44,15 @@ export async function requestAirdrop(
   });
 }
 
-export async function findListingAddress(
-  mint: anchor.web3.PublicKey,
-  borrower: anchor.web3.PublicKey
+export async function findCollectionAddress(
+  collection: anchor.web3.PublicKey
 ): Promise<anchor.web3.PublicKey> {
-  const [listingAccount] = await anchor.web3.PublicKey.findProgramAddress(
-    [Buffer.from("listing"), mint.toBuffer(), borrower.toBuffer()],
+  const [collectionAddress] = await anchor.web3.PublicKey.findProgramAddress(
+    [Buffer.from("collection"), collection.toBuffer()],
     PROGRAM_ID
   );
 
-  return listingAccount;
+  return collectionAddress;
 }
 
 export async function findTokenManagerAddress(
@@ -123,6 +122,70 @@ export async function findMetadataAddress(mint: anchor.web3.PublicKey) {
   );
 }
 
+export async function mintNFT(
+  connection: anchor.web3.Connection,
+  keypair: anchor.web3.Keypair
+) {
+  const creator = anchor.web3.Keypair.generate().publicKey;
+  await requestAirdrop(connection, creator);
+
+  const metaplex = Metaplex.make(connection).use(keypairIdentity(keypair));
+
+  const { nft: collection } = await metaplex
+    .nfts()
+    .create({
+      uri: "https://arweave.net/123",
+      name: "My Collection",
+      sellerFeeBasisPoints: 500,
+      creators: [
+        {
+          address: creator,
+          share: 100,
+        },
+      ],
+      isCollection: true,
+      collectionIsSized: true,
+    })
+    .run();
+
+  const { nft } = await metaplex
+    .nfts()
+    .create({
+      uri: "https://arweave.net/123",
+      name: "My NFT",
+      sellerFeeBasisPoints: 500,
+      creators: [
+        {
+          address: creator,
+          share: 100,
+        },
+      ],
+      collection: collection.mint.address,
+    })
+    .run();
+
+  const {
+    response: { signature },
+  } = await metaplex
+    .nfts()
+    .verifyCollection({
+      mintAddress: nft.mint.address,
+      collectionMintAddress: nft.collection.address,
+      collectionAuthority: keypair,
+      payer: keypair,
+    })
+    .run();
+
+  const latestBlockhash = await connection.getLatestBlockhash();
+  await connection.confirmTransaction({ signature, ...latestBlockhash });
+
+  const metadata = await Metadata.fromAccountAddress(
+    connection,
+    nft.metadataAddress
+  );
+
+  return nft;
+}
 export type LoanBorrower = Awaited<ReturnType<typeof initLoan>>;
 export type LoanLender = Awaited<ReturnType<typeof giveLoan>>;
 
@@ -239,34 +302,6 @@ export async function giveLoan(
 
 export type CallOptionSeller = Awaited<ReturnType<typeof initCallOption>>;
 export type CallOptionBuyer = Awaited<ReturnType<typeof buyCallOption>>;
-
-export async function mintNFT(
-  connection: anchor.web3.Connection,
-  keypair: anchor.web3.Keypair
-) {
-  const creator = anchor.web3.Keypair.generate().publicKey;
-  await requestAirdrop(connection, creator);
-
-  const metaplex = Metaplex.make(connection).use(keypairIdentity(keypair));
-
-  const { nft } = await metaplex
-    .nfts()
-    .create({
-      uri: "https://arweave.net/123",
-      name: "My NFT",
-      sellerFeeBasisPoints: 500,
-      creators: [
-        {
-          address: creator,
-          verified: false,
-          share: 100,
-        },
-      ],
-    })
-    .run();
-
-  return nft;
-}
 
 export async function initCallOption(
   connection: anchor.web3.Connection,

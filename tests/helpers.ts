@@ -411,6 +411,10 @@ export async function initHire(
   const depositTokenAccount = largestAccounts.value[0].address;
 
   const hire = await findHireAddress(nft.mint.address, keypair.publicKey);
+  const hireEscrow = await findHireEscrowAddress(
+    nft.mint.address,
+    keypair.publicKey
+  );
   const tokenManager = await findTokenManagerAddress(
     nft.mint.address,
     keypair.publicKey
@@ -446,7 +450,8 @@ export async function initHire(
     program,
     provider,
     tokenManager,
-    hireAccount: hire,
+    hire,
+    hireEscrow,
     depositTokenAccount,
     mint: nft.mint.address,
     edition: nft.edition.address,
@@ -480,7 +485,8 @@ export async function takeHire(
       .accounts({
         borrower: keypair.publicKey,
         lender: lender.keypair.publicKey,
-        hire: lender.hireAccount,
+        hire: lender.hire,
+        hireEscrow: lender.hireEscrow,
         tokenManager: lender.tokenManager,
         depositTokenAccount: lender.depositTokenAccount,
         hireTokenAccount: tokenAccount.address,
@@ -520,7 +526,8 @@ export async function recoverHire(lender: HireLender, borrower: HireBorrower) {
       .accounts({
         borrower: borrower.keypair.publicKey,
         lender: lender.keypair.publicKey,
-        hire: lender.hireAccount,
+        hire: lender.hire,
+        hireEscrow: lender.hireEscrow,
         tokenManager: lender.tokenManager,
         depositTokenAccount: lender.depositTokenAccount,
         hireTokenAccount: borrower.hireTokenAccount,

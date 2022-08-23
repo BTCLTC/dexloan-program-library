@@ -68,6 +68,7 @@ pub struct ExerciseCallOption<'info> {
 pub fn handle_exercise_call_option<'info>(ctx: Context<'_, '_, '_, 'info, ExerciseCallOption<'info>>) -> Result<()> {
     let call_option = &mut ctx.accounts.call_option;
     let token_manager = &mut ctx.accounts.token_manager;
+    let remaining_accounts = &mut ctx.remaining_accounts.iter();
     let unix_timestamp = ctx.accounts.clock.unix_timestamp;
 
     msg!("Exercise with strike price: {} lamports", call_option.strike_price);
@@ -91,7 +92,7 @@ pub fn handle_exercise_call_option<'info>(ctx: Context<'_, '_, '_, 'info, Exerci
     )?;
 
     let remaining_amount = pay_creator_fees(
-        &mut ctx.remaining_accounts.iter(),
+        remaining_accounts,
         call_option.strike_price,
         &ctx.accounts.mint.to_account_info(),
         &ctx.accounts.metadata.to_account_info(),
@@ -202,6 +203,7 @@ pub fn handle_exercise_call_option_with_hire<'info>(ctx: Context<'_, '_, '_, 'in
     let call_option = &mut ctx.accounts.call_option;
     let hire = &mut ctx.accounts.hire;
     let token_manager = &mut ctx.accounts.token_manager;
+    let remaining_accounts = &mut ctx.remaining_accounts.iter();
     let unix_timestamp = ctx.accounts.clock.unix_timestamp;
 
     msg!("Exercise with strike price: {} lamports", call_option.strike_price);
@@ -225,7 +227,7 @@ pub fn handle_exercise_call_option_with_hire<'info>(ctx: Context<'_, '_, '_, 'in
     )?;
 
     let remaining_amount = pay_creator_fees(
-        &mut ctx.remaining_accounts.iter(),
+        remaining_accounts,
         call_option.strike_price,
         &ctx.accounts.mint.to_account_info(),
         &ctx.accounts.metadata.to_account_info(),
@@ -247,7 +249,7 @@ pub fn handle_exercise_call_option_with_hire<'info>(ctx: Context<'_, '_, '_, 'in
     if hire.borrower.is_some() {
         settle_hire_escrow_balance(
             hire,
-            &mut ctx.remaining_accounts.iter(),
+            remaining_accounts,
             &ctx.accounts.hire_escrow.to_account_info(),
             &ctx.accounts.seller.to_account_info(),
             unix_timestamp,

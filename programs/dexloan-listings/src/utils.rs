@@ -313,7 +313,7 @@ pub fn settle_hire_escrow_balance<'a, 'b>(
 
     if hire.borrower.is_some() {
         let borrower = next_account_info(remaining_accounts)?;
-
+        msg!("settlement! {}", borrower.key());
         require_keys_eq!(borrower.key(), hire.borrower.unwrap());
 
         msg!("Returning {} lamports to borrower from escrow balance", remaining_escrow_balance);        
@@ -430,7 +430,7 @@ pub fn pay_creator_fees<'a>(
                         .ok_or(DexloanError::NumericalOverflow)?;
 
                 let current_creator_info = next_account_info(remaining_accounts)?;
-
+                msg!("current creator {}", current_creator_info.key());
                 if creator_fee > 0 {
                     invoke(
                         &anchor_lang::solana_program::system_instruction::transfer(

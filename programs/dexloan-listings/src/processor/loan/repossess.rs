@@ -168,6 +168,7 @@ pub fn handle_repossess_with_hire<'info>(ctx: Context<'_, '_, '_, 'info, Reposse
     let loan = &mut ctx.accounts.loan;
     let hire = &mut ctx.accounts.hire;
     let token_manager = &mut ctx.accounts.token_manager;
+    let remaining_accounts = &mut ctx.remaining_accounts.iter();
     let unix_timestamp = ctx.accounts.clock.unix_timestamp;
 
     let start_date = loan.start_date;
@@ -184,7 +185,7 @@ pub fn handle_repossess_with_hire<'info>(ctx: Context<'_, '_, '_, 'info, Reposse
     if hire.borrower.is_some() {
         settle_hire_escrow_balance(
             hire,
-            &mut ctx.remaining_accounts.iter(),
+            remaining_accounts,
             &ctx.accounts.hire_escrow.to_account_info(),
             &ctx.accounts.borrower.to_account_info(),
             unix_timestamp,
